@@ -87,13 +87,19 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session?.user) {
         const u = data.session.user;
-        const { data: cp } = await supabase.from('client_profiles').select('display_name, company_name').eq('user_id', u.id).maybeSingle();
-        const name = cp?.display_name || u.user_metadata?.display_name || u.email?.split('@')[0] || '';
-        const company = cp?.company_name || '';
-        setLoggedInUser({ id: u.id, email: u.email || '', name, company });
-        setForm(f => ({ ...f, name, email: u.email || '', company }));
+        try {
+          const { data: cp } = await supabase.from('client_profiles').select('display_name, company_name').eq('user_id', u.id).maybeSingle();
+          const name = cp?.display_name || u.user_metadata?.display_name || u.email?.split('@')[0] || '';
+          const company = cp?.company_name || '';
+          setLoggedInUser({ id: u.id, email: u.email || '', name, company });
+          setForm(f => ({ ...f, name, email: u.email || '', company }));
+        } catch {
+          // Creator/admin users don't have client_profiles; pre-fill from auth metadata only
+          const name = u.user_metadata?.display_name || u.email?.split('@')[0] || '';
+          setForm(f => ({ ...f, name, email: u.email || '' }));
+        }
       }
-    });
+    }).catch(() => {});
   }, []);
 
   const createOrderRecord = async (status: 'on_hold' | 'pending', _extraFields?: Record<string, string>): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
@@ -554,29 +560,34 @@ function PublicCreatorProfile({ username }: { username: string }) {
   const [showBrandGate, setShowBrandGate] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    const checkClientProfile = async (userId: string) => {
+      try {
+        const { data: cp } = await supabase
+          .from('client_profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        setHasClientProfile(!!cp);
+      } catch {
+        // Non-client users (creators, admins) may not have a client_profiles row;
+        // RLS may block the read — treat as "no client profile", do not crash.
+        setHasClientProfile(false);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
       const hasSession = !!data.session;
       setClientSession(hasSession);
       if (hasSession && data.session?.user) {
-        const { data: cp } = await supabase
-          .from('client_profiles')
-          .select('id')
-          .eq('user_id', data.session.user.id)
-          .maybeSingle();
-        setHasClientProfile(!!cp);
+        checkClientProfile(data.session.user.id);
       }
-    });
+    }).catch(() => setClientSession(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => {
       const hasSession = !!s;
       setClientSession(hasSession);
       if (hasSession && s?.user) {
-        const { data: cp } = await supabase
-          .from('client_profiles')
-          .select('id')
-          .eq('user_id', s.user.id)
-          .maybeSingle();
-        setHasClientProfile(!!cp);
+        checkClientProfile(s.user.id);
       } else {
         setHasClientProfile(false);
       }
@@ -612,12 +623,13 @@ function PublicCreatorProfile({ username }: { username: string }) {
     // Safety timeout — if query never resolves, show NotFound after 8s
     const timeout = setTimeout(() => setProfile(null), 8000);
 
-    supabase
-      .from('creator_profiles')
-      .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
-      .eq('username', cleanUsername)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('creator_profiles')
+          .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
+          .eq('username', cleanUsername)
+          .maybeSingle();
         clearTimeout(timeout);
         if (error) {
           console.error('[PublicCreatorProfile] fetch error:', error.message);
@@ -625,12 +637,12 @@ function PublicCreatorProfile({ username }: { username: string }) {
           return;
         }
         setProfile((data as PublicProfile | null) ?? null);
-      })
-      .catch(err => {
+      } catch (err) {
         clearTimeout(timeout);
         console.error('[PublicCreatorProfile] unexpected error:', err);
         setProfile(null);
-      });
+      }
+    })();
 
     return () => clearTimeout(timeout);
   }, [username]);
