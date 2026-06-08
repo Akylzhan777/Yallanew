@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star, Users, TrendingUp, Play, Instagram, Youtube, MapPin, ChevronRight, Check, Clock, Shield, Lock, Zap, CreditCard, X, Smartphone, Info, Share2, ExternalLink, ArrowLeft } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+
+// Anonymous client for public reads — never carries a user session,
+// so creator_profiles queries are never blocked by auth token refresh or RLS role evaluation.
+const publicSupabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
 import { CreatorPackage } from '../context/CreatorAuthContext';
 import { formatPriceForRegion, REGION_CONFIG, Region } from '../context/RegionContext';
 import { applyCreatorSeo, resetDefaultSeo } from '../lib/seo';
@@ -625,7 +634,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
 
     (async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await publicSupabase
           .from('creator_profiles')
           .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
           .eq('username', cleanUsername)
