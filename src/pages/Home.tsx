@@ -1,16 +1,14 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../lib/i18n';
-import { Search, Star, Users, Play, Instagram, Youtube, ChevronRight, ChevronDown, X, Check, ArrowRight, UserPlus, Send, LayoutDashboard, LogOut, Briefcase, Heart } from 'lucide-react';
+import { Search, Star, Users, Play, Instagram, Youtube, ChevronRight, ChevronDown, X, Check, ArrowRight, UserPlus, Send, LayoutDashboard, LogOut, Briefcase } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import { useRegion } from '../context/RegionContext';
 import JoinLanguageSelector from '../components/JoinLanguageSelector';
 import { supabase } from '../lib/supabase';
-import { useWishlist } from '../context/WishlistContext';
-import CreatorCardKZ from '../components/CreatorCardKZ';
 
-type PageType = 'home' | 'ideas' | 'academy' | 'gallery' | 'calendar' | 'scripts' | 'referral' | 'collabs' | 'shop' | 'wishlist';
+type PageType = 'home' | 'ideas' | 'academy' | 'gallery' | 'calendar' | 'scripts' | 'referral' | 'collabs' | 'shop';
 
 interface HomeProps {
   setPage: (p: PageType) => void;
@@ -115,34 +113,15 @@ function dbProfileToCreator(p: Record<string, unknown>): Creator {
 function CreatorCard({ creator, index = 0 }: { creator: Creator; index?: number }) {
   const { t } = useTranslation();
   const { formatPrice: fmtPrice } = useRegion();
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const minPrice = Math.min(...creator.packages.map(p => p.clientPrice ?? Math.round(p.price * 1.2)));
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
   const profileUrl = creator.username ? `/${creator.username}` : '#';
-  const inWishlist = isInWishlist(creator.id);
-
-  const handleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (inWishlist) {
-      removeFromWishlist(creator.id);
-    } else {
-      addToWishlist({
-        creatorId: creator.id,
-        username: creator.username,
-        creatorName: creator.name,
-        creatorAvatar: creator.avatar,
-        creatorType: creator.type,
-        savedAt: Date.now(),
-      });
-    }
-  };
 
   return (
     <a
       href={profileUrl}
       className="group cursor-pointer overflow-hidden transition-all duration-300 hover:-translate-y-2 flex flex-col no-underline"
-      style={{ background: '#F4F4F4', borderRadius: 24, width: '100%', maxWidth: 320, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', textDecoration: 'none', position: 'relative' }}
+      style={{ background: '#F4F4F4', borderRadius: 24, width: '100%', maxWidth: 320, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', textDecoration: 'none' }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 16px 48px rgba(0,0,0,0.15)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)'; }}
     >
@@ -164,26 +143,6 @@ function CreatorCard({ creator, index = 0 }: { creator: Creator; index?: number 
           </div>
         )}
       </div>
-
-      {/* Wishlist button */}
-      <button
-        onClick={handleWishlist}
-        className="absolute z-10"
-        style={{
-          top: 18, right: 18,
-          width: 34, height: 34, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: inWishlist ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.25)',
-          border: inWishlist ? '1.5px solid rgba(220,38,38,0.6)' : '1.5px solid rgba(255,255,255,0.3)',
-          color: inWishlist ? '#dc2626' : '#fff',
-          backdropFilter: 'blur(8px)',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-        }}
-        title={inWishlist ? 'Remove from wishlist' : 'Save to wishlist'}
-      >
-        <Heart size={15} fill={inWishlist ? 'currentColor' : 'none'} />
-      </button>
 
       {/* Avatar */}
       <div className="flex justify-center -mt-10 relative z-10 mb-3">
@@ -728,9 +687,7 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
               <div className="flex overflow-x-auto gap-4 sm:gap-6 px-4 lg:px-0 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {featured.map((c, i) => (
                   <div key={c.id} className="min-w-[280px] sm:min-w-[320px] shrink-0 snap-center">
-                    {region === 'KZ'
-                      ? <CreatorCardKZ creator={c} />
-                      : <CreatorCard creator={c} index={i} />}
+                    <CreatorCard creator={c} index={i} />
                   </div>
                 ))}
               </div>
@@ -778,9 +735,7 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
             >
               {filtered.map((c, i) => (
                 <div key={c.id} className="min-w-[280px] sm:min-w-[320px] shrink-0 snap-center">
-                  {region === 'KZ'
-                    ? <CreatorCardKZ creator={c} />
-                    : <CreatorCard creator={c} index={i} />}
+                  <CreatorCard creator={c} index={i} />
                 </div>
               ))}
             </div>

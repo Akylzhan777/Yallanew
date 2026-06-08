@@ -30,10 +30,8 @@ import CreatorDashboard from './pages/CreatorDashboard';
 import ClientAuth from './pages/ClientAuth';
 import ClientDashboard from './pages/ClientDashboard';
 import { ClientAuthProvider, useClientAuth } from './context/ClientAuthContext';
-import { WishlistProvider } from './context/WishlistContext';
-import Wishlist from './pages/Wishlist';
 
-type PageType = 'home' | 'ideas' | 'academy' | 'gallery' | 'calendar' | 'scripts' | 'referral' | 'collabs' | 'shop' | 'wishlist';
+type PageType = 'home' | 'ideas' | 'academy' | 'gallery' | 'calendar' | 'scripts' | 'referral' | 'collabs' | 'shop';
 
 import CancelBooking from './pages/CancelBooking';
 import EditorPortal from './pages/EditorPortal';
@@ -238,7 +236,6 @@ function AppContent() {
           {page === 'referral' && <Referral />}
           {page === 'collabs'  && <Collabs />}
           {page === 'shop'     && <Shop />}
-          {page === 'wishlist' && <Wishlist />}
         </div>
         {showModal && <PaymentModal onClose={() => setShowModal(false)} />}
         {showDashboard && (
@@ -459,13 +456,11 @@ export default function App() {
     <RegionProvider>
       <AppSettingsProvider>
         <AuthProvider>
-          <WishlistProvider>
-            <AppContent />
-            <RegionSelectorModal />
-            {showLangPicker && (
-              <LanguagePickerModal onClose={() => setShowLangPicker(false)} />
-            )}
-          </WishlistProvider>
+          <AppContent />
+          <RegionSelectorModal />
+          {showLangPicker && (
+            <LanguagePickerModal onClose={() => setShowLangPicker(false)} />
+          )}
         </AuthProvider>
       </AppSettingsProvider>
     </RegionProvider>
