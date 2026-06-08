@@ -91,19 +91,47 @@ export function addDays(d: Date, n: number): Date {
   return r;
 }
 
-// Builds 4-week calendar grid (Mon–Sun) anchored to the Monday of the current week
-// in the given timezone. Always returns 4×7 dates with no nulls.
-// Working-day filtering is handled by the UI using the creator's working_days array.
+// Builds 4-week calendar grid anchored to "today" in the given timezone.
+// Starts at i=0 (today) so clients can make same-day bookings.
+// Past time slots within today are blocked by isTimeDisabled in the UI.
+// TODO: Implement creator.lead_time_hours check to allow per-creator minimum booking notice.
 export function buildBookingWeeks(timeZone: string): Array<Array<Date | null>> {
   const todayStr = localIsoDate(new Date(), timeZone);
   const [ty, tm, td] = todayStr.split('-').map(Number);
   const today = new Date(Date.UTC(ty, tm - 1, td));
 
-  // Monday of the current week (Mon=1 … Sun=0)
-  const dow = today.getUTCDay();
-  const monday = addDays(today, dow === 0 ? -6 : 1 - dow);
+  const weekdays: Date[] = [];
+  for (let i = 0; weekdays.length < 20; i++) {
+    const d = addDays(today, i);
+    if (isWeekday(d)) weekdays.push(d);
+  }
+  if (weekdays.length === 0) return [];
 
-  return Array.from({ length: 4 }, (_, w) =>
-    Array.from({ length: 7 }, (_, d) => addDays(monday, w * 7 + d)),
-  );
+  const firstDay = weekdays[0];
+  const lastDay = weekdays[weekdays.length - 1];
+
+  const getMondayOf = (d: Date): Date => {
+    const r = new Date(d);
+    const dow = r.getUTCDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    r.setUTCDate(r.getUTCDate() + diff);
+    return r;
+  };
+
+  const weekStart = getMondayOf(firstDay);
+  const weekEnd = getMondayOf(lastDay);
+  const weeks: Array<Array<Date | null>> = [];
+  let cursor = new Date(weekStart);
+  while (cursor <= weekEnd) {
+    const week: Array<Date | null> = [];
+    for (let i = 0; i < 5; i++) {
+      const day = addDays(cursor, i);
+      const iso = localIsoDate(day, timeZone);
+      const isInRange = weekdays.some(wd => localIsoDate(wd, timeZone) === iso);
+      week.push(isInRange ? day : null);
+    }
+    weeks.push(week);
+    cursor = addDays(cursor, 7);
+  }
+  return weeks;
 }

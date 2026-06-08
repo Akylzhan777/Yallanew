@@ -7,11 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-// Initialised once at cold-start — reused across all warm invocations.
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const authClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!);
-const serviceClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
 // In-memory rate limiter: max 5 requests per 60s per identity
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_MAX = 5;
@@ -51,6 +46,10 @@ Deno.serve(async (req: Request) => {
   // auth.getUser() additionally checks if this is a live user session
   // vs. an anon-key JWT. Both are allowed; the result determines
   // whether we can pin a booked_by_user_id.
+  const authClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+  );
   const { data: { user }, error: authError } = await authClient.auth.getUser(token);
   // user === null for anonymous (anon-key JWT) visitors — allowed.
   // An explicit auth error on a non-anon token means the session is expired/invalid.
@@ -82,6 +81,12 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Service-role client for privileged write — bypasses RLS intentionally
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
     // ── Server-side pricing ──────────────────────────────────────────────
     // Fetch creator profile once; used for both package lookup and WhatsApp number.
@@ -144,17 +149,10 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (bookingErr || !booking) {
-      const isConflict = bookingErr?.code === '23P01';
-      return new Response(
-        JSON.stringify({
-          error: isConflict ? "slot_conflict" : (bookingErr?.message ?? "Insert failed"),
-          error_type: isConflict ? "slot_conflict" : "generic",
-        }),
-        {
-          status: isConflict ? 409 : 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: bookingErr?.message ?? "Insert failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── 5. WhatsApp notification to creator ─────────────────────────────
@@ -182,7 +180,7 @@ Deno.serve(async (req: Request) => {
             (creatorPayoutAmount !== null
               ? `\n💰 Ваш заработок: ${creatorPayoutAmount.toLocaleString("ru-RU")} ₸`
               : "") +
-            (details ? `\nПожелания: ${details.length > 500 ? details.substring(0, 500) + '... (текст обрезан)' : details}` : "") +
+            (details ? `\nПожелания: ${details}` : "") +
             `\n\nЗайдите в личный кабинет для деталей.`;
 
           let phone = whatsappNumber.replace(/\D/g, "");

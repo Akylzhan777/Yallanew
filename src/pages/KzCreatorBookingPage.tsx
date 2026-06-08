@@ -23,7 +23,6 @@ interface CreatorProfile {
   location?: string;
   packages: CreatorPackage[];
   booking_buffer?: number;
-  working_days?: number[]; // 0=Sun, 1=Mon ... 6=Sat; defaults to all 7
 }
 
 interface BookingSlot {
@@ -155,10 +154,8 @@ const BookingForm = memo(({ selectedDate, selectedTime, packages, onSubmit, onCl
               onChange={e => setDetails(e.target.value)}
               placeholder="Что снимаем? Тема, пожелания..."
               rows={3}
-              maxLength={500}
               className="w-full px-4 py-3 rounded-xl text-sm bg-white/[0.04] border border-white/10 text-white outline-none placeholder-gray-600 focus:border-amber-500/40 transition-colors resize-none"
             />
-            <div className="text-right text-[10px] text-gray-600 mt-1">{details.length} / 500</div>
           </div>
         </div>
 
@@ -175,7 +172,7 @@ const BookingForm = memo(({ selectedDate, selectedTime, packages, onSubmit, onCl
 });
 
 const ALL_TIME_OPTIONS = getAllTimeOptions();
-const WEEKDAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const WEEKDAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт'];
 
 export default function KzCreatorBookingPage({ username }: { username: string }) {
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
@@ -183,7 +180,6 @@ export default function KzCreatorBookingPage({ username }: { username: string })
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [fetchError, setFetchError] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -196,7 +192,7 @@ export default function KzCreatorBookingPage({ username }: { username: string })
   const fetchData = useCallback(async () => {
     const { data: profile } = await supabase
       .from('creator_profiles')
-      .select('id, display_name, avatar_url, creator_type, username, location, packages, booking_buffer, working_days')
+      .select('id, display_name, avatar_url, creator_type, username, location, packages, booking_buffer')
       .eq('username', username)
       .eq('region', 'KZ')
       .maybeSingle();
@@ -204,25 +200,17 @@ export default function KzCreatorBookingPage({ username }: { username: string })
     if (!profile) { setNotFound(true); setLoading(false); return; }
     setCreator({ ...profile, packages: Array.isArray(profile.packages) ? profile.packages : [] });
 
-    const [{ data: bookingData, error: bookingError }, { data: blockedData, error: blockedError }] = await Promise.all([
+    const [{ data: bookingData }, { data: blockedData }] = await Promise.all([
       supabase
         .from('creator_bookings')
         .select('id, booking_date, booking_time, start_time, end_time, status')
         .eq('creator_id', profile.id)
-        .in('status', ['pending', 'confirmed', 'in_progress'])
-        .gte('booking_date', localIsoDate(new Date(), KZ_TZ)),
+        .in('status', ['pending', 'confirmed', 'in_progress']),
       supabase
         .from('creator_blocked_dates')
         .select('blocked_date')
         .eq('creator_id', profile.id),
     ]);
-
-    if (bookingError || blockedError) {
-      console.error('Критическая ошибка загрузки расписания:', bookingError ?? blockedError);
-      setFetchError(true);
-      setLoading(false);
-      return;
-    }
 
     setBookings((bookingData ?? []).map(b => ({ ...b, date: b.booking_date })));
     setBlockedDates(new Set((blockedData ?? []).map((d: BlockedDate) => d.blocked_date)));
@@ -278,13 +266,11 @@ export default function KzCreatorBookingPage({ username }: { username: string })
   const occupiedMin = occupiedForSelected.reduce((s, r) => s + (r.end - r.start), 0);
   const dateIsBlocked = selectedDate ? blockedDates.has(selectedDate) : false;
 
-  // Uses pre-computed occupiedForSelected — interval intersection, not point-in-interval.
+  // Uses pre-computed occupiedForSelected — no filter() on every slot render.
   const isTimeDisabled = useCallback((tStr: string): boolean => {
     const tMin = timeToMinutes(tStr);
-    const tMax = tMin + 60; // 1-hour session
-    if (tMax > WORK_END * 60) return true; // new slot would extend past work hours
-    // Two intervals [tMin, tMax] and [r.start, r.end] overlap iff tMin < r.end && tMax > r.start
-    if (occupiedForSelected.some(r => tMin < r.end && tMax > r.start)) return true;
+    if (tMin + 60 > WORK_END * 60) return true;
+    if (occupiedForSelected.some(r => tMin >= r.start && tMin < r.end)) return true;
     if (selectedDate === todayStr) {
       const now = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -317,24 +303,7 @@ export default function KzCreatorBookingPage({ username }: { username: string })
         ...(packageId ? { package_id: packageId } : {}),
       },
     });
-    if (error) {
-      let errorType = 'generic';
-      try {
-        // FunctionsHttpError exposes the raw Response via .context
-        const body = await (error as { context?: Response }).context?.json?.();
-        errorType = body?.error_type ?? 'generic';
-      } catch { /* ignore parse failures */ }
-
-      if (errorType === 'slot_conflict') {
-        showToast('К сожалению, этот слот только что забронировали. Выберите другое время.');
-        setSelectedTime('');
-        setShowForm(false);
-        fetchData();
-      } else {
-        showToast('Ошибка при бронировании. Проверьте соединение с сетью.');
-      }
-      return;
-    }
+    if (error) { showToast('Ошибка при бронировании'); return; }
     setSuccess(true);
   };
 
@@ -353,21 +322,6 @@ export default function KzCreatorBookingPage({ username }: { username: string })
           <h1 className="text-xl font-bold text-white mb-2">Видеограф не найден</h1>
           <p className="text-sm text-gray-400">Проверьте ссылку или обратитесь к видеографу</p>
           <a href="/" className="inline-block mt-6 px-5 py-2.5 rounded-xl text-sm font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">На главную</a>
-        </div>
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B101B] px-6">
-        <div className="text-center max-w-sm">
-          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </div>
-          <h1 className="text-lg font-bold text-white mb-2">Ошибка соединения с сервером</h1>
-          <p className="text-sm text-gray-400 mb-6">Не удалось загрузить расписание. Пожалуйста, обновите страницу.</p>
-          <button onClick={() => window.location.reload()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">Обновить страницу</button>
         </div>
       </div>
     );
@@ -421,14 +375,14 @@ export default function KzCreatorBookingPage({ username }: { username: string })
         <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="text-sm font-bold text-white mb-3">{monthHeading}</div>
 
-          <div className="grid grid-cols-7 gap-1 mb-2">
+          <div className="grid grid-cols-5 gap-1 mb-2">
             {WEEKDAYS_RU.map(d => (
               <div key={d} className="text-center text-[10px] font-semibold text-gray-500">{d}</div>
             ))}
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+            <div key={wi} className="grid grid-cols-5 gap-1 mb-1">
               {week.map((day, di) => {
                 if (!day) return <div key={`empty-${wi}-${di}`} className="aspect-[1.2]" />;
                 const ds = localIsoDate(day, KZ_TZ);
@@ -436,12 +390,9 @@ export default function KzCreatorBookingPage({ username }: { username: string })
                 const isToday = ds === todayStr;
                 const isSelected = ds === selectedDate;
                 const isBlocked = blockedDates.has(ds);
-                // day.getUTCDay(): 0=Sun 1=Mon … 6=Sat
-                const workingDays = creator?.working_days ?? [0, 1, 2, 3, 4, 5, 6];
-                const isNonWorking = !workingDays.includes(day.getUTCDay());
                 const cell = calendarOccupancyMap.get(ds);
-                const fullyBooked = isPast || isNonWorking || (cell?.fullyBooked ?? false) || isBlocked;
-                const hasSomeBookings = !isPast && !isNonWorking && (cell?.hasSomeBookings ?? false);
+                const fullyBooked = isPast || (cell?.fullyBooked ?? false) || isBlocked;
+                const hasSomeBookings = !isPast && (cell?.hasSomeBookings ?? false);
 
                 return (
                   <button
@@ -454,17 +405,17 @@ export default function KzCreatorBookingPage({ username }: { username: string })
                       ${isToday && !isSelected ? 'ring-1 ring-emerald-500/30' : ''}
                     `}
                   >
-                    <span className={`text-xs font-semibold ${isSelected ? 'text-amber-300' : isToday ? 'text-emerald-400' : isPast || isNonWorking ? 'text-gray-600' : 'text-gray-200'}`}>
+                    <span className={`text-xs font-semibold ${isSelected ? 'text-amber-300' : isToday ? 'text-emerald-400' : isPast ? 'text-gray-600' : 'text-gray-200'}`}>
                       {parseInt(ds.slice(8), 10)}
                     </span>
-                    <span className={`text-[9px] mt-0.5 ${isPast || isNonWorking ? 'text-gray-700' : 'text-gray-500'}`}>{RU_MONTHS_SHORT[parseInt(ds.slice(5, 7), 10) - 1]}</span>
+                    <span className={`text-[9px] mt-0.5 ${isPast ? 'text-gray-700' : 'text-gray-500'}`}>{RU_MONTHS_SHORT[parseInt(ds.slice(5, 7), 10) - 1]}</span>
                     {!fullyBooked && !hasSomeBookings && (
                       <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[7px] font-bold text-emerald-400">Своб.</span>
                     )}
                     {!fullyBooked && hasSomeBookings && (
                       <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[7px] font-bold text-amber-400">Есть</span>
                     )}
-                    {!isNonWorking && !isPast && (cell?.fullyBooked || isBlocked) && (
+                    {fullyBooked && !isPast && (
                       <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[7px] font-bold text-red-400/60">—</span>
                     )}
                   </button>
