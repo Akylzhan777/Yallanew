@@ -124,10 +124,11 @@ const RESERVED_PATHS = new Set([
   'ugc-creators', 'influencers', 'bloggers', 'videographers', 'photographers', 'models', 'editors', 'creators',
 ]);
 
-// Detect /[username] or /@[username] — single-segment path that is not a reserved word
-// Strip leading @ to normalize handles copied from social media
+// Detect /[username], /@[username], or /%40[username] (URL-encoded @)
+// decodeURIComponent handles %40 -> @, then we strip the leading @ if present
 const rawSegment = pathSegments[0] ?? '';
-const cleanedSegment = rawSegment.startsWith('@') ? rawSegment.slice(1) : rawSegment;
+const decodedSegment = (() => { try { return decodeURIComponent(rawSegment); } catch { return rawSegment; } })();
+const cleanedSegment = decodedSegment.replace(/^@/, '').toLowerCase();
 const isPublicCreatorRoute =
   pathSegments.length === 1 &&
   cleanedSegment.length >= 3 &&
@@ -403,8 +404,8 @@ function CreatorRoutes() {
 export default function App() {
   const [showLangPicker, setShowLangPicker] = useState(!hasChosenLanguage());
 
-  // Redirect /@username → /username for canonical URLs
-  if (rawSegment.startsWith('@') && cleanedSegment.length >= 3) {
+  // Redirect /@username or /%40username → /username for canonical URLs
+  if ((rawSegment.startsWith('@') || rawSegment.startsWith('%40')) && cleanedSegment.length >= 3) {
     window.location.replace(`/${cleanedSegment}${window.location.search}`);
     return null;
   }

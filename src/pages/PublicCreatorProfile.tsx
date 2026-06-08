@@ -607,7 +607,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   useEffect(() => {
     if (!username) { setProfile(null); return; }
 
-    const cleanUsername = username.replace(/^@/, '').toLowerCase();
+    const cleanUsername = decodeURIComponent(username || '').replace(/^@/, '').toLowerCase();
 
     // Safety timeout — if query never resolves, show NotFound after 8s
     const timeout = setTimeout(() => setProfile(null), 8000);
@@ -655,7 +655,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   }, [profile]);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${username.replace(/^@/, '')}`;
+    const url = `${window.location.origin}/${decodeURIComponent(username || '').replace(/^@/, '')}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
