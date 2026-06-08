@@ -13,8 +13,6 @@ import {
   TIME_STEP,
 } from '../lib/slotUtils';
 
-const UAE_TZ = 'Asia/Dubai';
-
 const RU_DAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 interface Props {
@@ -53,8 +51,8 @@ export default function RescheduleModal({ booking, onClose, onSuccess }: Props) 
       });
   }, [booking.operator_id]);
 
-  const weeks = buildBookingWeeks(UAE_TZ);
-  const todayStr = localIsoDate(new Date(), UAE_TZ);
+  const weeks = buildBookingWeeks();
+  const todayStr = localIsoDate(new Date());
 
   const startMin = startTime ? timeToMinutes(startTime) : -1;
 
@@ -145,7 +143,7 @@ export default function RescheduleModal({ booking, onClose, onSuccess }: Props) 
                 <div key={wi} className="reschedule-cal-week">
                   {week.map((day, di) => {
                     if (!day) return <div key={di} className="reschedule-cal-cell reschedule-cal-empty" />;
-                    const iso = localIsoDate(day, UAE_TZ);
+                    const iso = localIsoDate(day);
                     const isPast = iso < todayStr;
                     const free = !isPast && hasFreeTime(iso);
                     const isSelected = iso === selectedDate;

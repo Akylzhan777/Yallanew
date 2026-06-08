@@ -20,12 +20,9 @@ function getFreeWindowsCount(bookings: BookingEvent[], dateStr: string): number 
   return freeMinutes >= TIME_STEP ? Math.floor(freeMinutes / TIME_STEP) : 0;
 }
 
-const UAE_TZ = 'Asia/Dubai';
-
 function buildCalendarWeeks(): Array<Array<Date | null>> {
-  const todayStr = localIsoDate(new Date(), UAE_TZ);
-  const [ty, tm, td] = todayStr.split('-').map(Number);
-  const today = new Date(Date.UTC(ty, tm - 1, td));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const weekdays: Date[] = [];
   for (let i = 1; weekdays.length < 20; i++) {
     const d = addDays(today, i);
@@ -36,9 +33,9 @@ function buildCalendarWeeks(): Array<Array<Date | null>> {
   const lastDay = weekdays[weekdays.length - 1];
   const getMondayOf = (d: Date): Date => {
     const r = new Date(d);
-    const dow = r.getUTCDay();
+    const dow = r.getDay();
     const diff = dow === 0 ? -6 : 1 - dow;
-    r.setUTCDate(r.getUTCDate() + diff);
+    r.setDate(r.getDate() + diff);
     return r;
   };
   const weekStart = getMondayOf(firstDay);
@@ -49,8 +46,8 @@ function buildCalendarWeeks(): Array<Array<Date | null>> {
     const week: Array<Date | null> = [];
     for (let i = 0; i < 5; i++) {
       const day = addDays(cursor, i);
-      const iso = localIsoDate(day, UAE_TZ);
-      const isInRange = weekdays.some(d => localIsoDate(d, UAE_TZ) === iso);
+      const iso = localIsoDate(day);
+      const isInRange = weekdays.some(d => localIsoDate(d) === iso);
       week.push(isInRange ? day : null);
     }
     weeks.push(week);
@@ -255,7 +252,7 @@ export default function Calendar({ operator, onBack }: Props) {
     ).catch(() => {});
   };
 
-  const todayStr = localIsoDate(new Date(), UAE_TZ);
+  const todayStr = localIsoDate(new Date());
   const occupiedRangesForDate = selectedDate ? getOccupiedRanges(bookings, selectedDate) : [];
   const validEndOptions = getValidEndOptions();
 
@@ -556,7 +553,7 @@ export default function Calendar({ operator, onBack }: Props) {
                   if (!day) {
                     return <div key={`empty-${wi}-${di}`} className="cal-day-empty" />;
                   }
-                  const ds = localIsoDate(day, UAE_TZ);
+                  const ds = localIsoDate(day);
                   const isToday = ds === todayStr;
                   const isSelected = ds === selectedDate;
                   const occupied = getOccupiedRanges(bookings, ds);

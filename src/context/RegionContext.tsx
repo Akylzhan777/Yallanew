@@ -26,16 +26,18 @@ interface RegionContextValue {
 
 const RegionContext = createContext<RegionContextValue | null>(null);
 
-function detectRegionFromUrl(): Region {
+function detectRegionFromUrl(): Region | null {
   const path = window.location.pathname.toLowerCase();
   if (path === '/kz' || path.startsWith('/kz/')) return 'KZ';
-  return 'UAE';
+  return null;
 }
 
 export function RegionProvider({ children }: { children: ReactNode }) {
   const urlRegion = detectRegionFromUrl();
-  const [region, setRegionState] = useState<Region>(urlRegion);
-  const [showSelector, setShowSelector] = useState(false);
+  const stored = localStorage.getItem('selectedRegion') as Region | null;
+  const initial = urlRegion ?? stored ?? null;
+  const [region, setRegionState] = useState<Region>(initial ?? 'UAE');
+  const [showSelector, setShowSelector] = useState(!initial);
 
   const setRegion = (r: Region) => {
     setRegionState(r);
@@ -46,9 +48,14 @@ export function RegionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    localStorage.setItem('selectedRegion', urlRegion);
-    const lang = REGION_CONFIG[urlRegion].defaultLanguage;
-    if (i18n.language !== lang) i18n.changeLanguage(lang);
+    if (urlRegion) {
+      localStorage.setItem('selectedRegion', urlRegion);
+      const lang = REGION_CONFIG[urlRegion].defaultLanguage;
+      if (i18n.language !== lang) i18n.changeLanguage(lang);
+    } else if (stored) {
+      const lang = REGION_CONFIG[stored].defaultLanguage;
+      if (i18n.language !== lang) i18n.changeLanguage(lang);
+    }
   }, []);
 
   const config = REGION_CONFIG[region];
@@ -66,10 +73,4 @@ export function useRegion() {
   const ctx = useContext(RegionContext);
   if (!ctx) throw new Error('useRegion must be used within RegionProvider');
   return ctx;
-}
-
-// Pure helper — formats a price in the currency of the given region,
-// ignoring the visitor's global region state. Use this on creator-owned pages.
-export function formatPriceForRegion(amount: number, region: Region): string {
-  return `${amount.toLocaleString()} ${REGION_CONFIG[region].currency}`;
 }

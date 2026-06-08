@@ -181,6 +181,7 @@ export default function DealMessenger({
     setSending(true);
     await supabase.from('deal_messages').insert({
       chat_id: chatId,
+      sender_id: currentUserId,
       text: filtered,
       is_system: false,
     });
@@ -202,6 +203,7 @@ export default function DealMessenger({
       const { data: urlData } = supabase.storage.from('chat-files').getPublicUrl(path);
       await supabase.from('deal_messages').insert({
         chat_id: chatId,
+        sender_id: currentUserId,
         text: file.name,
         file_url: urlData.publicUrl,
         file_type: file.type,
@@ -216,7 +218,7 @@ export default function DealMessenger({
     setActionLoading(true);
     await supabase.from('marketplace_orders').update({ status: 'delivered' }).eq('id', orderId);
     await supabase.from('deal_messages').insert({
-      chat_id: chatId,
+      chat_id: chatId, sender_id: currentUserId,
       text: 'Работа отправлена на проверку.', is_system: true,
     });
     onOrderUpdate?.('delivered');
@@ -227,7 +229,7 @@ export default function DealMessenger({
     setActionLoading(true);
     await supabase.from('marketplace_orders').update({ status: 'completed', accepted_at: new Date().toISOString() }).eq('id', orderId);
     await supabase.from('deal_messages').insert({
-      chat_id: chatId,
+      chat_id: chatId, sender_id: currentUserId,
       text: 'Работа принята! Оплата переведена исполнителю.', is_system: true,
     });
     onOrderUpdate?.('completed');
@@ -238,7 +240,7 @@ export default function DealMessenger({
     setActionLoading(true);
     await supabase.from('marketplace_orders').update({ status: 'revision' }).eq('id', orderId);
     await supabase.from('deal_messages').insert({
-      chat_id: chatId,
+      chat_id: chatId, sender_id: currentUserId,
       text: 'Запрошена доработка. Ознакомьтесь с замечаниями и повторно отправьте работу.', is_system: true,
     });
     onOrderUpdate?.('revision');

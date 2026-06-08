@@ -7,73 +7,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-// In-memory rate limiter: max 5 requests per 60s per identity
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-
-function checkRateLimit(identity: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitStore.get(identity);
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(identity, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
-}
-
-function unauthorized(msg = "Unauthorized") {
-  return new Response(JSON.stringify({ error: msg }), {
-    status: 401,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  // ── 1. Require Authorization header ─────────────────────────────────
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader.startsWith("Bearer ")) return unauthorized();
-  const token = authHeader.slice(7);
-
-  // ── 2. Verify JWT — resolve caller identity ──────────────────────────
-  // verify_jwt:true already validated the signature at the gateway.
-  // auth.getUser() additionally checks if this is a live user session
-  // vs. an anon-key JWT. Both are allowed; the result determines
-  // whether we can pin a booked_by_user_id.
-  const authClient = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-  );
-  const { data: { user }, error: authError } = await authClient.auth.getUser(token);
-  // user === null for anonymous (anon-key JWT) visitors — allowed.
-  // An explicit auth error on a non-anon token means the session is expired/invalid.
-  if (authError && user === null && token.split(".").length !== 3) {
-    return unauthorized("Invalid token");
-  }
-
-  // ── 3. Rate limiting by verified identity ───────────────────────────
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    req.headers.get("cf-connecting-ip") ??
-    "unknown";
-  const identity = user?.id ?? ip;
-
-  if (!checkRateLimit(identity)) {
-    return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment." }), {
-      status: 429,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const body = await req.json();
-    const { creator_id, client_name, client_phone, booking_date, booking_time, details, package_id } = body;
+    const { creator_id, client_name, client_phone, booking_date, booking_time, details } = body;
 
     if (!creator_id || !client_name || !booking_date || !booking_time) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -82,68 +23,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Service-role client for privileged write — bypasses RLS intentionally
-    const serviceClient = createClient(
+    const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // ── Server-side pricing ──────────────────────────────────────────────
-    // Fetch creator profile once; used for both package lookup and WhatsApp number.
-    const { data: creatorProfile } = await serviceClient
-      .from("creator_profiles")
-      .select("whatsapp_number, display_name, packages")
-      .eq("id", creator_id)
-      .maybeSingle();
-
-    type PkgRow = { id: string; name: string; price: number; clientPrice?: number };
-    const profilePackages: PkgRow[] = Array.isArray(creatorProfile?.packages)
-      ? (creatorProfile.packages as PkgRow[])
-      : [];
-
-    let resolvedPackageName: string | null = null;
-    let packagePrice: number | null = null;
-    let creatorPayoutAmount: number | null = null;
-
-    if (package_id) {
-      const pkg = profilePackages.find((p) => p.id === package_id);
-      if (pkg) {
-        // actualPrice = what client pays; never trust the client-sent price
-        const actualPrice = pkg.clientPrice ?? Math.round(pkg.price * 1.2);
-        resolvedPackageName = pkg.name;
-        packagePrice = actualPrice;
-        creatorPayoutAmount = Math.round(actualPrice * 0.8);
-      }
-    }
-
-    // Compute end_time (+60 min), capped at WORK_END (18:00) and safe against midnight rollover
-    const WORK_END_MIN = 18 * 60;
-    const [hh, mm] = booking_time.split(":").map(Number);
-    const rawEndMin = hh * 60 + mm + 60;
-    const endTotalMin = Math.min(rawEndMin, WORK_END_MIN);
-    const endHour = Math.floor(endTotalMin / 60) % 24;
-    const endTime = `${String(endHour).padStart(2, "0")}:${String(endTotalMin % 60).padStart(2, "0")}`;
-
-    // ── 4. Single authoritative insert ──────────────────────────────────
-    // booked_by_user_id is set ONLY from the server-side JWT — client body cannot influence it.
-    // package_price and creator_payout_amount are set from server-side lookup above.
-    const { data: booking, error: bookingErr } = await serviceClient
+    // Insert booking
+    const { data: booking, error: bookingErr } = await supabase
       .from("creator_bookings")
       .insert({
         creator_id,
         client_name,
         client_phone: client_phone ?? "",
-        client_email: "",
+        client_email: body.client_email ?? "",
         booking_date,
         booking_time,
-        start_time: booking_time,
-        end_time: endTime,
         details: details ?? "",
         status: "pending",
-        ...(user ? { booked_by_user_id: user.id } : {}),
-        ...(resolvedPackageName ? { package_id, package_name: resolvedPackageName } : {}),
-        ...(packagePrice !== null ? { package_price: packagePrice } : {}),
-        ...(creatorPayoutAmount !== null ? { creator_payout_amount: creatorPayoutAmount } : {}),
       })
       .select()
       .maybeSingle();
@@ -155,80 +51,56 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── 5. WhatsApp notification to creator ─────────────────────────────
+    // Fetch creator's whatsapp_number
+    const { data: creatorProfile } = await supabase
+      .from("creator_profiles")
+      .select("whatsapp_number, display_name")
+      .eq("id", creator_id)
+      .maybeSingle();
+
     const whatsappNumber = creatorProfile?.whatsapp_number as string | null | undefined;
 
-    try {
-      if (whatsappNumber) {
-        const instanceId = Deno.env.get("GREEN_API_INSTANCE_ID");
-        const apiToken = Deno.env.get("GREEN_API_TOKEN");
+    if (whatsappNumber) {
+      const instanceId = Deno.env.get("GREEN_API_INSTANCE_ID");
+      const token = Deno.env.get("GREEN_API_TOKEN");
 
-        if (instanceId && apiToken) {
-          const dateFormatted = new Date(booking_date).toLocaleDateString("ru-RU", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          });
+      if (instanceId && token) {
+        const dateFormatted = new Date(booking_date).toLocaleDateString("ru-RU", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
 
-          const message =
-            `🚀 Новая бронь на Yalla Influencers!\n` +
-            `Дата: ${dateFormatted}\n` +
-            `Время: ${booking_time}\n` +
-            `Заказчик: ${client_name}` +
-            (client_phone ? `\nТелефон: ${client_phone}` : "") +
-            (resolvedPackageName ? `\nУслуга: ${resolvedPackageName}` : "") +
-            (creatorPayoutAmount !== null
-              ? `\n💰 Ваш заработок: ${creatorPayoutAmount.toLocaleString("ru-RU")} ₸`
-              : "") +
-            (details ? `\nПожелания: ${details}` : "") +
-            `\n\nЗайдите в личный кабинет для деталей.`;
+        // Calculate net amount if package price is provided
+        const clientPaid = body.package_price ? Number(body.package_price) : 0;
+        const netAmount = clientPaid > 0 ? Math.round(clientPaid - clientPaid * 0.20) : 0;
 
-          let phone = whatsappNumber.replace(/\D/g, "");
-          if (phone.length === 11 && phone.startsWith("8")) {
-            phone = "7" + phone.slice(1);
-          } else if (phone.length === 10) {
-            phone = "7" + phone;
-          }
+        const earningsLine = netAmount > 0
+          ? `\nВы заработаете: ${netAmount.toLocaleString("ru-RU")} KZT (комиссия платформы удержана).`
+          : "";
 
-          const greenApiRes = await fetch(
-            `https://api.green-api.com/waInstance${instanceId}/sendMessage/${apiToken}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
-            },
-          );
+        const message =
+          `🚀 Новая бронь на Yalla Influencers!\n` +
+          `Дата: ${dateFormatted}\n` +
+          `Время: ${booking_time}\n` +
+          `Заказчик: ${client_name}` +
+          (client_phone ? `\nТелефон: ${client_phone}` : "") +
+          earningsLine +
+          (details ? `\nПожелания: ${details}` : "") +
+          `\n\nЗайдите в личный кабинет для деталей.`;
 
-          if (!greenApiRes.ok) {
-            const errorData = await greenApiRes.text();
+        // Normalize phone: strip non-digits, ensure no leading +
+        const phone = whatsappNumber.replace(/\D/g, "");
 
-            // Log failure to DB
-            await serviceClient.from("notification_logs").insert({
-              event_type: "whatsapp_delivery_failed",
-              status_code: greenApiRes.status,
-              error_details: errorData,
-              booking_id: booking.id,
-            });
-
-            // Send Telegram alert for auth/balance failures
-            if (greenApiRes.status === 401 || greenApiRes.status === 403) {
-              await fetch(
-                `https://api.telegram.org/bot8708200263:AAHyTaI-HM5ICH805r3usAKQNlQozbpqud4/sendMessage`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chat_id: "-1003854532235",
-                    text: `🚨 КРИТИЧЕСКАЯ ОШИБКА: Green API недоступен или токен истек! Уведомления не уходят.\n\nHTTP ${greenApiRes.status}\n${errorData}`,
-                  }),
-                },
-              );
-            }
-          }
-        }
+        await fetch(
+          `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
+          },
+        );
       }
-    } catch (_whatsappErr) {
-      // WhatsApp delivery failure must never break the booking flow
     }
 
     return new Response(JSON.stringify({ ok: true, booking_id: booking.id }), {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Star, Users, TrendingUp, Play, Instagram, Youtube, MapPin, ChevronRight, Check, Clock, Shield, Lock, Zap, CreditCard, X, Smartphone, Info, Share2, ExternalLink, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { CreatorPackage } from '../context/CreatorAuthContext';
-import { formatPriceForRegion, REGION_CONFIG, Region } from '../context/RegionContext';
+import { useRegion } from '../context/RegionContext';
 import { applyCreatorSeo, resetDefaultSeo } from '../lib/seo';
 
 interface PublicProfile {
@@ -68,10 +68,7 @@ type CPPayMethod = 'card' | 'tabby' | 'tamara' | 'kaspi';
    ═══════════════════════════════════════════════════════════════════ */
 function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg: CreatorPackage; onClose: () => void }) {
   const { t } = useTranslation();
-  const creatorRegion = ((profile.region as Region) ?? 'UAE');
-  const creatorCurrency = REGION_CONFIG[creatorRegion].currency;
-  const formatPrice = (amount: number) => formatPriceForRegion(amount, creatorRegion);
-  const isKzCheckout = creatorRegion === 'KZ';
+  const { region, formatPrice, config: regionConfig } = useRegion();
   const isModel = profile.creator_type === 'model';
   const clientPrice = pkg.clientPrice ?? Math.round(pkg.price * 1.2);
   const [form, setForm] = useState({ name: '', email: '', whatsapp: '', company: '', brief: '' });
@@ -111,7 +108,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
       creator_net_amount: net,
       status,
       payment_method: payMethod,
-      region: creatorRegion,
+      region,
       ...(loggedInUser ? { client_user_id: loggedInUser.id } : {}),
     }).select().maybeSingle();
     if (insertErr) {
@@ -129,11 +126,11 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
         platform_fee: commission,
         description: `Order from ${form.name} — ${pkg.name} (on hold)`,
       });
-      await supabase.rpc('upsert_creator_wallet_on_hold', {
-        p_creator_id: profile.id,
-        p_currency: 'KZT',
-        p_amount: net,
-      });
+      const { data: cp } = await supabase.from('creator_profiles').select('balance_on_hold').eq('id', profile.id).maybeSingle();
+      if (cp) {
+        const current = (cp as { balance_on_hold?: number }).balance_on_hold ?? 0;
+        await supabase.from('creator_profiles').update({ balance_on_hold: current + net }).eq('id', profile.id);
+      }
     }
     return { data: order, error: null };
   };
@@ -174,7 +171,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
             creator_name: profile.display_name,
             buyer_email: form.email,
             buyer_name: form.name,
-            region: creatorRegion,
+            region,
           }),
         });
 
@@ -214,7 +211,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
         body: JSON.stringify({
           provider: payMethod,
           amount: clientPrice,
-          currency: creatorCurrency,
+          currency: regionConfig.currency,
           buyer_name: form.name,
           buyer_email: form.email,
           buyer_phone: form.whatsapp,
@@ -278,8 +275,8 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
             <div className="flex justify-between text-sm">
               <span style={{ color: '#64748b' }}>
                 {payMethod === 'tabby'
-                  ? t('marketplace.checkout.bnplInstallments4', { amount: Math.ceil(clientPrice / 4).toLocaleString(), currency: creatorCurrency })
-                  : t('marketplace.checkout.bnplInstallments3', { amount: Math.ceil(clientPrice / 3).toLocaleString(), currency: creatorCurrency })}
+                  ? t('marketplace.checkout.bnplInstallments4', { amount: Math.ceil(clientPrice / 4).toLocaleString(), currency: regionConfig.currency })
+                  : t('marketplace.checkout.bnplInstallments3', { amount: Math.ceil(clientPrice / 3).toLocaleString(), currency: regionConfig.currency })}
               </span>
               <span className="font-semibold" style={{ color: providerColor }}>{t('marketplace.checkout.bnplInterestFree')}</span>
             </div>
@@ -419,7 +416,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
           <div>
             <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#475569' }}>{t('marketplace.checkout.paymentMethod')}</div>
             <div className="grid grid-cols-3 gap-2 mb-4">
-              {(isKzCheckout ? [
+              {(region === 'KZ' ? [
                 { id: 'card' as CPPayMethod, label: 'Карта', icon: <CreditCard size={14} />, color: '#00C48C' },
                 { id: 'kaspi' as CPPayMethod, label: 'Kaspi Red', icon: <span className="font-black text-xs">K</span>, color: '#E53935' },
               ] : [
@@ -444,14 +441,14 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
                 Доступна оплата через <span className="font-black" style={{ color: '#E53935' }}>Kaspi Red</span> и рассрочка 0-0-12
               </div>
             )}
-            {payMethod === 'tabby' && !isKzCheckout && (
+            {payMethod === 'tabby' && region !== 'KZ' && (
               <div className="rounded-xl p-3 mb-3 text-xs" style={{ background: 'rgba(61,187,172,0.06)', border: '1px solid rgba(61,187,172,0.25)', color: '#64748b' }}>
-                {t('marketplace.checkout.bnplSnippet', { count: 4, amount: Math.ceil(clientPrice / 4).toLocaleString(), currency: creatorCurrency })} <span className="font-black" style={{ color: '#3DBBAC' }}>tabby</span>
+                {t('marketplace.checkout.bnplSnippet', { count: 4, amount: Math.ceil(clientPrice / 4).toLocaleString(), currency: regionConfig.currency })} <span className="font-black" style={{ color: '#3DBBAC' }}>tabby</span>
               </div>
             )}
-            {payMethod === 'tamara' && !isKzCheckout && (
+            {payMethod === 'tamara' && region !== 'KZ' && (
               <div className="rounded-xl p-3 mb-3 text-xs" style={{ background: 'rgba(188,139,240,0.06)', border: '1px solid rgba(188,139,240,0.25)', color: '#64748b' }}>
-                {t('marketplace.checkout.bnplSnippet', { count: 3, amount: Math.ceil(clientPrice / 3).toLocaleString(), currency: creatorCurrency })} <span className="font-black" style={{ color: '#BC8BF0' }}>tamara</span>
+                {t('marketplace.checkout.bnplSnippet', { count: 3, amount: Math.ceil(clientPrice / 3).toLocaleString(), currency: regionConfig.currency })} <span className="font-black" style={{ color: '#BC8BF0' }}>tamara</span>
               </div>
             )}
 
@@ -462,7 +459,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
                   <span className="text-xs font-bold" style={{ color: '#00C48C' }}>{t('marketplace.checkout.securePayment')}</span>
                 </div>
                 <p className="text-xs" style={{ color: '#64748b' }}>
-                  {isKzCheckout ? 'Безопасная оплата через Stripe. Вы будете перенаправлены для ввода данных карты.' : 'You will be securely redirected to Stripe to complete your payment.'}
+                  {region === 'KZ' ? 'Безопасная оплата через Stripe. Вы будете перенаправлены для ввода данных карты.' : 'You will be securely redirected to Stripe to complete your payment.'}
                 </p>
               </div>
             )}
@@ -509,7 +506,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
             ) : isBnpl ? (
               <>{t('marketplace.checkout.bnplContinue', { provider: payMethod === 'tabby' ? 'Tabby' : 'Tamara' })} <ChevronRight size={16} /></>
             ) : (
-              <><Shield size={16} />{t('marketplace.checkout.pay', { price: clientPrice.toLocaleString(), currency: creatorCurrency })}</>
+              <><Shield size={16} />{t('marketplace.checkout.pay', { price: clientPrice.toLocaleString(), currency: regionConfig.currency })}</>
             )}
           </button>
           <p className="text-center text-xs" style={{ color: '#374151' }}>{t('marketplace.checkout.sslNotice')}</p>
@@ -547,6 +544,7 @@ function NotFound({ username }: { username: string }) {
    ═══════════════════════════════════════════════════════════════════ */
 function PublicCreatorProfile({ username }: { username: string }) {
   const { t } = useTranslation();
+  const { region, formatPrice, config: regionConfig } = useRegion();
   const [profile, setProfile] = useState<PublicProfile | null | 'loading'>('loading');
   const [checkoutPkg, setCheckoutPkg] = useState<CreatorPackage | null>(null);
   const [clientSession, setClientSession] = useState<boolean | null>(null);
@@ -586,7 +584,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   }, []);
 
   function handleOrderClick(pkg: CreatorPackage) {
-    if (isKzCreator) {
+    if (isKzCreator || region === 'KZ') {
       const isBrand = clientSession === true && hasClientProfile;
       if (!isBrand) {
         setShowBrandGate(true);
@@ -696,9 +694,6 @@ function PublicCreatorProfile({ username }: { username: string }) {
   const isModel = profile.creator_type === 'model';
   const isVideographer = profile.creator_type === 'videographer';
   const isKzCreator = profile.region === 'KZ';
-  const creatorRegion = (profile.region as Region) ?? 'UAE';
-  const creatorCurrency = REGION_CONFIG[creatorRegion].currency;
-  const fmtCreatorPrice = (amount: number) => formatPriceForRegion(amount, creatorRegion);
 
   // Build rich portfolio items — prefer portfolio_items, fall back to portfolio_urls
   const portfolioItems: Array<{ url: string; title?: string; clientName?: string; description?: string }> = (() => {
@@ -996,7 +991,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
                       )}
                     </div>
                     <div className="flex-shrink-0 text-right">
-                      <span className="font-bold text-white">{fmtCreatorPrice(getClientPrice(pkg))}</span>
+                      <span className="font-bold text-white">{formatPrice(getClientPrice(pkg))}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1079,7 +1074,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
               {t('marketplace.escrow.step1Desc')} {t('marketplace.escrow.step3Desc')}
             </p>
             <div className="flex items-center gap-2 mt-2">
-              {isKzCreator ? (
+              {isKzCreator || region === 'KZ' ? (
                 <>
                   <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(229,57,53,0.1)', color: '#E53935', border: '1px solid rgba(229,57,53,0.2)' }}>Kaspi Red</span>
                   <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(229,57,53,0.06)', color: '#EF5350', border: '1px solid rgba(229,57,53,0.15)' }}>Kaspi Kredit</span>
@@ -1111,7 +1106,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
             }}
           >
             <CreditCard size={16} />
-            {t('marketplace.modal.bookCta', { price: minPrice.toLocaleString(), currency: creatorCurrency })}
+            {t('marketplace.modal.bookCta', { price: minPrice.toLocaleString(), currency: regionConfig.currency })}
           </button>
           <div className="flex items-center justify-center gap-1.5 mt-2 text-xs" style={{ color: '#475569' }}>
             <Lock size={10} style={{ color: '#00C48C' }} />

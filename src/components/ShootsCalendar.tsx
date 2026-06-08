@@ -3,8 +3,6 @@ import { ChevronLeft, ChevronRight, Lock, Unlock, Clock, User as UserIcon, Packa
 import { supabase } from '../lib/supabase';
 import { localIsoDate } from '../lib/slotUtils';
 
-const UAE_TZ = 'Asia/Dubai';
-
 interface Booking {
   id: string;
   client_name: string;
@@ -119,7 +117,7 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
   }
 
   const cells = getMonthDays(viewYear, viewMonth);
-  const todayStr = localIsoDate(today, UAE_TZ);
+  const todayStr = localIsoDate(today);
 
   function getBookingsForDate(dateStr: string): Booking[] {
     return bookings.filter(b => b.booking_date === dateStr && b.status !== 'cancelled');
@@ -168,7 +166,7 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
           if (!date) return <div key={`empty-${i}`} className="aspect-square" />;
-          const dateStr = localIsoDate(date, UAE_TZ);
+          const dateStr = localIsoDate(date);
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
           const dateIsBlocked = blockedDates.has(dateStr);

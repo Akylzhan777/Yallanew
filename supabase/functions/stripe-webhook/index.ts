@@ -114,17 +114,17 @@ Deno.serve(async (req: Request) => {
 
     if (creatorProfile) {
       if (isKZ) {
-        await supabase.rpc("upsert_creator_wallet_on_hold", {
-          p_creator_id: order.creator_id,
-          p_currency: "KZT",
-          p_amount: netAmount,
-        });
+        const currentOnHold = Number(creatorProfile.balance_on_hold) || 0;
+        await supabase
+          .from("creator_profiles")
+          .update({ balance_on_hold: currentOnHold + netAmount })
+          .eq("id", order.creator_id);
       } else {
-        await supabase.rpc("upsert_creator_wallet_available", {
-          p_creator_id: order.creator_id,
-          p_currency: "AED",
-          p_amount: netAmount,
-        });
+        const currentBalance = Number(creatorProfile.wallet_balance) || 0;
+        await supabase
+          .from("creator_profiles")
+          .update({ wallet_balance: currentBalance + netAmount })
+          .eq("id", order.creator_id);
       }
 
       // 3. WhatsApp notification to creator (KZ only)
