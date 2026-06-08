@@ -83,18 +83,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Lazy cleanup: cancel stale pending bookings for this creator ──────
-    // Runs before any slot check so expired holds don't block new clients.
-    // Fire-and-forget — a failure here must not block the booking flow.
-    const expiryCutoff = new Date(Date.now() - 20 * 60 * 1000).toISOString();
-    serviceClient
-      .from("creator_bookings")
-      .update({ status: "cancelled" })
-      .eq("creator_id", creator_id)
-      .eq("status", "pending")
-      .lt("created_at", expiryCutoff)
-      .then(() => { /* audit trail preserved via status change */ });
-
     // ── Server-side pricing ──────────────────────────────────────────────
     // Fetch creator profile once; used for both package lookup and WhatsApp number.
     const { data: creatorProfile } = await serviceClient
@@ -131,34 +119,7 @@ Deno.serve(async (req: Request) => {
     const endHour = Math.floor(endTotalMin / 60) % 24;
     const endTime = `${String(endHour).padStart(2, "0")}:${String(endTotalMin % 60).padStart(2, "0")}`;
 
-    // ── 4. Atomic order creation (marketplace_orders → creator_bookings) ──
-    // Create the parent order first so escrow + chat triggers have a single
-    // source of truth to fire on. The booking row is then linked via order_id.
-    const { data: order, error: orderErr } = await serviceClient
-      .from("marketplace_orders")
-      .insert({
-        creator_id,
-        client_user_id: user?.id ?? null,
-        buyer_name: client_name,
-        package_id: package_id ?? null,
-        package_name: resolvedPackageName ?? null,
-        package_price: packagePrice ?? null,
-        creator_payout_amount: creatorPayoutAmount ?? null,
-        status: "pending",
-        order_type: "booking",
-        region: "KZ",
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (orderErr || !order) {
-      return new Response(
-        JSON.stringify({ error: orderErr?.message ?? "Order creation failed", error_type: "generic" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // ── 5. Single authoritative booking insert ──────────────────────────
+    // ── 4. Single authoritative insert ──────────────────────────────────
     // booked_by_user_id is set ONLY from the server-side JWT — client body cannot influence it.
     // package_price and creator_payout_amount are set from server-side lookup above.
     const { data: booking, error: bookingErr } = await serviceClient
@@ -173,8 +134,7 @@ Deno.serve(async (req: Request) => {
         start_time: booking_time,
         end_time: endTime,
         details: details ?? "",
-        status: "pending_payment",
-        order_id: order.id,
+        status: "pending",
         ...(user ? { booked_by_user_id: user.id } : {}),
         ...(resolvedPackageName ? { package_id, package_name: resolvedPackageName } : {}),
         ...(packagePrice !== null ? { package_price: packagePrice } : {}),
@@ -184,8 +144,6 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (bookingErr || !booking) {
-      // Roll back the orphaned order so it doesn't pollute the orders table
-      await serviceClient.from("marketplace_orders").delete().eq("id", order.id);
       const isConflict = bookingErr?.code === '23P01';
       return new Response(
         JSON.stringify({

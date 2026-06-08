@@ -75,7 +75,6 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
   const [blockingDate, setBlockingDate] = useState<string | null>(null);
-  const [blockError, setBlockError] = useState<string | null>(null);
 
   useEffect(() => {
     loadBlockedDates();
@@ -93,7 +92,6 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
 
   async function toggleBlockDate(dateStr: string) {
     setBlockingDate(dateStr);
-    setBlockError(null);
     if (blockedDates.has(dateStr)) {
       await supabase
         .from('creator_blocked_dates')
@@ -102,18 +100,9 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
         .eq('blocked_date', dateStr);
       setBlockedDates(prev => { const n = new Set(prev); n.delete(dateStr); return n; });
     } else {
-      const { error } = await supabase
+      await supabase
         .from('creator_blocked_dates')
         .insert({ creator_id: creatorId, blocked_date: dateStr });
-      if (error) {
-        // P0001 = RAISE EXCEPTION from our conflict-check trigger
-        const msg = error.code === 'P0001'
-          ? 'Невозможно заблокировать день! На эту дату уже оформлен заказ. Перенесите или отмените текущую съемку перед блокировкой.'
-          : 'Не удалось заблокировать дату. Попробуйте ещё раз.';
-        setBlockError(msg);
-        setBlockingDate(null);
-        return;
-      }
       setBlockedDates(prev => new Set([...prev, dateStr]));
     }
     setBlockingDate(null);
@@ -155,17 +144,6 @@ export default function ShootsCalendar({ creatorId, bookings, orders, onRefresh 
 
   return (
     <div className="space-y-4">
-      {blockError && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-          <span className="mt-0.5 shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </span>
-          <span className="flex-1">{blockError}</span>
-          <button onClick={() => setBlockError(null)} className="shrink-0 opacity-60 hover:opacity-100">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      )}
       {/* Month navigation */}
       <div className="flex items-center justify-between px-1">
         <button onClick={prevMonth} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-colors">
