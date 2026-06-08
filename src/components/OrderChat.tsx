@@ -11,20 +11,7 @@ interface Message {
   created_at: string;
 }
 
-const CONTACT_PATTERNS = [
-  /\b\d{7,15}\b/,                  // phone numbers
-  /@[\w.-]+/,                       // @ mentions / telegram handles
-  /\bt\.me\//i,                     // telegram links
-  /wa\.me/i,                        // whatsapp links
-  /\bwhatsapp\b/i,
-  /\btelegram\b/i,
-  /\binstagram\.com\//i,
-  /\bfacebook\.com\//i,
-];
-
-function detectContactInfo(text: string): boolean {
-  return CONTACT_PATTERNS.some(p => p.test(text));
-}
+const CONTACT_PATTERN = /(\b\d{7,15}\b|@[\w.\-]+|\bt\.me\/|wa\.me|\bwhatsapp\b|\btelegram\b|\binstagram\.com\/|\bfacebook\.com\/|https?:\/\/|www\.|[\w.\-]+@[\w.\-]+\.[a-z]{2,})/i;
 
 const ROLE_DISPLAY: Record<string, { label: string; color: string }> = {
   creator: { label: 'You', color: '#00C48C' },
@@ -67,8 +54,8 @@ export default function OrderChat({ orderId, senderRole, senderId }: { orderId: 
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    const hasFlagged = detectContactInfo(trimmed);
-    if (hasFlagged) {
+    // Client-side soft hint only — server always re-evaluates via DB trigger
+    if (CONTACT_PATTERN.test(trimmed)) {
       setWarning(true);
       setTimeout(() => setWarning(false), 4000);
     }
@@ -79,7 +66,6 @@ export default function OrderChat({ orderId, senderRole, senderId }: { orderId: 
       sender_role: senderRole,
       sender_id: senderId,
       content: trimmed,
-      has_flagged_content: hasFlagged,
     });
     setText('');
     setSending(false);

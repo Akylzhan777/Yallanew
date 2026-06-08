@@ -1,15 +1,6 @@
 User-agent: *
-Allow: /$
-Allow: /sitemap.xml
+Allow: /
 
-# Creator public profiles — all single-segment lowercase paths
-Allow: /[a-z]
-
-# Static assets
-Allow: /favicon.svg
-Allow: /og-image.svg
-
-# Block all system, admin, and operational routes
 Disallow: /admin
 Disallow: /admin/
 Disallow: /admin-marketplace
@@ -35,6 +26,18 @@ Disallow: /creator-onboarding
 Disallow: /creator-onboarding/
 Disallow: /creator-dashboard
 Disallow: /creator-dashboard/
+Disallow: /editor-dashboard
+Disallow: /editor-dashboard/
+Disallow: /telegram-dashboard
+Disallow: /telegram-dashboard/
+Disallow: /production-dashboard
+Disallow: /production-dashboard/
+Disallow: /client-login
+Disallow: /client-login/
+Disallow: /client-dashboard
+Disallow: /client-dashboard/
+Disallow: /brand/
+Disallow: /user-dashboard
+Disallow: /user-dashboard/
 
-# Sitemap location
 Sitemap: https://yallainfluencers.com/sitemap.xml

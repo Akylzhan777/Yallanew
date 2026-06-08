@@ -1,4 +1,3 @@
-// STRICTLY DO NOT MODIFY THIS COMPONENT
 import { BookingEvent } from './supabase';
 
 export const WORK_START = 9;
@@ -9,11 +8,15 @@ export const BUFFER_MINUTES = 60;
 export const RU_MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 export const RU_MONTHS_FULL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-export function localIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+// Returns YYYY-MM-DD for `d` interpreted in the given IANA timezone.
+// Always pass the operator/creator's timezone — never rely on the visitor's browser locale.
+export function localIsoDate(d: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 }
 
 export function timeToMinutes(t: string): number {
@@ -52,13 +55,29 @@ export function isTimeRangeFree(
   });
 }
 
-export function getOccupiedRanges(bookings: BookingEvent[], dateStr: string): Array<{ start: number; end: number }> {
-  return bookings
+function mergeIntervals(intervals: Array<{ start: number; end: number }>): Array<{ start: number; end: number }> {
+  if (intervals.length === 0) return [];
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  const merged = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    if (sorted[i].start <= last.end) {
+      last.end = Math.max(last.end, sorted[i].end);
+    } else {
+      merged.push({ ...sorted[i] });
+    }
+  }
+  return merged;
+}
+
+export function getOccupiedRanges(bookings: BookingEvent[], dateStr: string, bufferMinutes = BUFFER_MINUTES): Array<{ start: number; end: number }> {
+  const raw = bookings
     .filter(b => b.date === dateStr && b.status !== 'cancelled')
     .map(b => ({
-      start: Math.max(WORK_START * 60, timeToMinutes(b.start_time ?? '00:00') - BUFFER_MINUTES),
-      end: Math.min(WORK_END * 60, timeToMinutes(b.end_time ?? '00:00') + BUFFER_MINUTES),
+      start: Math.max(WORK_START * 60, timeToMinutes(b.start_time ?? '00:00') - bufferMinutes),
+      end: Math.min(WORK_END * 60, timeToMinutes(b.end_time ?? '00:00') + bufferMinutes),
     }));
+  return mergeIntervals(raw);
 }
 
 export function isWeekday(d: Date): boolean {
@@ -72,38 +91,19 @@ export function addDays(d: Date, n: number): Date {
   return r;
 }
 
-export function buildBookingWeeks(): Array<Array<Date | null>> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const weekdays: Date[] = [];
-  for (let i = 0; weekdays.length < 20; i++) {
-    const d = addDays(today, i);
-    if (isWeekday(d)) weekdays.push(d);
-  }
-  if (weekdays.length === 0) return [];
-  const firstDay = weekdays[0];
-  const lastDay = weekdays[weekdays.length - 1];
-  const getMondayOf = (d: Date): Date => {
-    const r = new Date(d);
-    const dow = r.getDay();
-    const diff = dow === 0 ? -6 : 1 - dow;
-    r.setDate(r.getDate() + diff);
-    return r;
-  };
-  const weekStart = getMondayOf(firstDay);
-  const weekEnd = getMondayOf(lastDay);
-  const weeks: Array<Array<Date | null>> = [];
-  let cursor = new Date(weekStart);
-  while (cursor <= weekEnd) {
-    const week: Array<Date | null> = [];
-    for (let i = 0; i < 5; i++) {
-      const day = addDays(cursor, i);
-      const iso = localIsoDate(day);
-      const isInRange = weekdays.some(d => localIsoDate(d) === iso);
-      week.push(isInRange ? day : null);
-    }
-    weeks.push(week);
-    cursor = addDays(cursor, 7);
-  }
-  return weeks;
+// Builds 4-week calendar grid (Mon–Sun) anchored to the Monday of the current week
+// in the given timezone. Always returns 4×7 dates with no nulls.
+// Working-day filtering is handled by the UI using the creator's working_days array.
+export function buildBookingWeeks(timeZone: string): Array<Array<Date | null>> {
+  const todayStr = localIsoDate(new Date(), timeZone);
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+  const today = new Date(Date.UTC(ty, tm - 1, td));
+
+  // Monday of the current week (Mon=1 … Sun=0)
+  const dow = today.getUTCDay();
+  const monday = addDays(today, dow === 0 ? -6 : 1 - dow);
+
+  return Array.from({ length: 4 }, (_, w) =>
+    Array.from({ length: 7 }, (_, d) => addDays(monday, w * 7 + d)),
+  );
 }

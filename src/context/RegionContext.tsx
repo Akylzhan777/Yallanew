@@ -21,23 +21,22 @@ interface RegionContextValue {
   setRegion: (r: Region) => void;
   config: RegionConfig;
   showSelector: boolean;
+  setShowSelector: (show: boolean) => void;
   formatPrice: (amount: number) => string;
 }
 
 const RegionContext = createContext<RegionContextValue | null>(null);
 
-function detectRegionFromUrl(): Region | null {
-  const path = window.location.pathname.toLowerCase();
-  if (path === '/kz' || path.startsWith('/kz/')) return 'KZ';
+function getStoredRegion(): Region | null {
+  const stored = localStorage.getItem('selectedRegion');
+  if (stored === 'UAE' || stored === 'KZ') return stored;
   return null;
 }
 
 export function RegionProvider({ children }: { children: ReactNode }) {
-  const urlRegion = detectRegionFromUrl();
-  const stored = localStorage.getItem('selectedRegion') as Region | null;
-  const initial = urlRegion ?? stored ?? null;
-  const [region, setRegionState] = useState<Region>(initial ?? 'UAE');
-  const [showSelector, setShowSelector] = useState(!initial);
+  const storedRegion = getStoredRegion();
+  const [region, setRegionState] = useState<Region>(storedRegion || 'UAE');
+  const [showSelector, setShowSelector] = useState(!storedRegion);
 
   const setRegion = (r: Region) => {
     setRegionState(r);
@@ -48,22 +47,15 @@ export function RegionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (urlRegion) {
-      localStorage.setItem('selectedRegion', urlRegion);
-      const lang = REGION_CONFIG[urlRegion].defaultLanguage;
-      if (i18n.language !== lang) i18n.changeLanguage(lang);
-    } else if (stored) {
-      const lang = REGION_CONFIG[stored].defaultLanguage;
-      if (i18n.language !== lang) i18n.changeLanguage(lang);
-    }
-  }, []);
+    const lang = REGION_CONFIG[region].defaultLanguage;
+    if (i18n.language !== lang) i18n.changeLanguage(lang);
+  }, [region]);
 
   const config = REGION_CONFIG[region];
-
   const formatPrice = (amount: number) => `${amount.toLocaleString()} ${config.currency}`;
 
   return (
-    <RegionContext.Provider value={{ region, setRegion, config, showSelector, formatPrice }}>
+    <RegionContext.Provider value={{ region, setRegion, config, showSelector, setShowSelector, formatPrice }}>
       {children}
     </RegionContext.Provider>
   );
@@ -73,4 +65,8 @@ export function useRegion() {
   const ctx = useContext(RegionContext);
   if (!ctx) throw new Error('useRegion must be used within RegionProvider');
   return ctx;
+}
+
+export function formatPriceForRegion(amount: number, region: Region): string {
+  return `${amount.toLocaleString()} ${REGION_CONFIG[region].currency}`;
 }

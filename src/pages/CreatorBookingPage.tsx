@@ -6,6 +6,8 @@ import {
   getAllTimeOptions, isWeekday, addDays,
 } from '../lib/slotUtils';
 
+const UAE_TZ = 'Asia/Dubai';
+
 interface CreatorInfo {
   id: string;
   display_name: string;
@@ -31,8 +33,9 @@ const MONTHS_FULL = ['January','February','March','April','May','June','July','A
 const DAYS = ['Mon','Tue','Wed','Thu','Fri'];
 
 function buildCalendarWeeks(): Array<Array<Date | null>> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = localIsoDate(new Date(), UAE_TZ);
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+  const today = new Date(Date.UTC(ty, tm - 1, td));
   const weekdays: Date[] = [];
   for (let i = 1; weekdays.length < 20; i++) {
     const d = addDays(today, i);
@@ -43,9 +46,9 @@ function buildCalendarWeeks(): Array<Array<Date | null>> {
   const lastDay = weekdays[weekdays.length - 1];
   const getMondayOf = (d: Date): Date => {
     const r = new Date(d);
-    const dow = r.getDay();
+    const dow = r.getUTCDay();
     const diff = dow === 0 ? -6 : 1 - dow;
-    r.setDate(r.getDate() + diff);
+    r.setUTCDate(r.getUTCDate() + diff);
     return r;
   };
   const weekStart = getMondayOf(firstDay);
@@ -56,8 +59,8 @@ function buildCalendarWeeks(): Array<Array<Date | null>> {
     const week: Array<Date | null> = [];
     for (let i = 0; i < 5; i++) {
       const day = addDays(cursor, i);
-      const iso = localIsoDate(day);
-      const isInRange = weekdays.some(wd => localIsoDate(wd) === iso);
+      const iso = localIsoDate(day, UAE_TZ);
+      const isInRange = weekdays.some(wd => localIsoDate(wd, UAE_TZ) === iso);
       week.push(isInRange ? day : null);
     }
     weeks.push(week);
@@ -210,7 +213,7 @@ export default function CreatorBookingPage({ handle }: { handle: string }) {
     fetchBookings();
   };
 
-  const todayStr = localIsoDate(new Date());
+  const todayStr = localIsoDate(new Date(), UAE_TZ);
   const occupiedRangesForDate = selectedDate ? getOccupiedRanges(bookings, selectedDate) : [];
   const validEndOptions = getValidEndOptions();
 
@@ -469,7 +472,7 @@ export default function CreatorBookingPage({ handle }: { handle: string }) {
               <div key={wi} className="cal-week-row">
                 {week.map((day, di) => {
                   if (!day) return <div key={`empty-${wi}-${di}`} className="cal-day-empty" />;
-                  const ds = localIsoDate(day);
+                  const ds = localIsoDate(day, UAE_TZ);
                   const isToday = ds === todayStr;
                   const isSelected = ds === selectedDate;
                   const occupied = getOccupiedRanges(bookings, ds);

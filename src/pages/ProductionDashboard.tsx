@@ -126,6 +126,9 @@ export default function ProductionDashboard() {
   // KZ: Link in Bio copy
   const [linkCopied, setLinkCopied] = useState(false);
 
+  // Wallet from creator_wallets table
+  const [walletData, setWalletData] = useState<{ balance_available: number; balance_on_hold: number } | null>(null);
+
   // KZ: Portfolio
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
@@ -163,8 +166,8 @@ export default function ProductionDashboard() {
     if (!user || !creatorProfile) return;
     loadBookings();
     loadPayouts();
+    loadWallet();
     setAvatarUrl(creatorProfile.avatar_url ?? null);
-    // Load any saved bio screenshot URL from profile
     const savedScreenshot = (creatorProfile as { bio_screenshot_url?: string }).bio_screenshot_url ?? null;
     if (savedScreenshot) setLinkBioScreenshot(savedScreenshot);
     if (isKZ) {
@@ -236,6 +239,18 @@ export default function ProductionDashboard() {
     if (data) setKzWithdrawals(data);
   }
 
+  async function loadWallet() {
+    if (!creatorProfile) return;
+    const cur = creatorProfile.region === 'KZ' ? 'KZT' : 'AED';
+    const { data } = await supabase
+      .from('creator_wallets')
+      .select('balance_available, balance_on_hold')
+      .eq('creator_id', creatorProfile.id)
+      .eq('currency', cur)
+      .maybeSingle();
+    if (data) setWalletData(data);
+  }
+
   async function saveBankDetails() {
     if (!user) return;
     setSavingBank(true);
@@ -267,7 +282,11 @@ export default function ProductionDashboard() {
       details: `${bankAccountName} / ${bankIban}`,
     });
     if (!error) {
-      await supabase.from('creator_profiles').update({ balance_available: balance - amt }).eq('user_id', user!.id);
+      await supabase.from('creator_wallets')
+        .update({ balance_available: balance - amt })
+        .eq('creator_id', creatorProfile.id)
+        .eq('currency', 'KZT');
+      await loadWallet();
       await loadWithdrawals();
       setKzWithdrawAmount('');
     }
@@ -337,7 +356,11 @@ export default function ProductionDashboard() {
     setPayoutSubmitting(true);
     const { error } = await supabase.from('payout_requests').insert({ user_id: user.id, amount: amt, payment_method: payoutMethod, details: payoutDetails });
     if (!error) {
-      await supabase.from('creator_profiles').update({ balance_available: balance - amt }).eq('user_id', user.id);
+      await supabase.from('creator_wallets')
+        .update({ balance_available: balance - amt })
+        .eq('creator_id', creatorProfile.id)
+        .eq('currency', 'AED');
+      await loadWallet();
       await loadPayouts();
       setShowPayoutModal(false);
       setPayoutAmount('');
@@ -434,7 +457,7 @@ export default function ProductionDashboard() {
   const upcoming = bookings.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status) && new Date(b.booking_date) >= new Date(new Date().toDateString()));
   const completed = bookings.filter(b => b.status === 'completed');
   const totalEarned = creatorProfile.balance_total_earned ?? 0;
-  const balance = creatorProfile.balance_available ?? 0;
+  const balance = walletData?.balance_available ?? creatorProfile.balance_available ?? 0;
   const filteredChats = dealChats.filter(c => !chatSearch || (c.client_name ?? '').toLowerCase().includes(chatSearch.toLowerCase()));
   const profileUrl = creatorProfile.username ? `https://yallainfluencers.com/${creatorProfile.username}` : null;
   const { text: greetText, Icon: GreetIcon } = greeting();
@@ -892,14 +915,14 @@ export default function ProductionDashboard() {
             </div>
 
             {/* KZ: frozen/escrow balance card */}
-            {isKZ && (creatorProfile.balance_on_hold ?? 0) > 0 && (
+            {isKZ && (walletData?.balance_on_hold ?? creatorProfile.balance_on_hold ?? 0) > 0 && (
               <div className="rounded-2xl p-4 mb-5 flex items-center gap-3" style={{ background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.18)' }}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(56,189,248,0.1)' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-sky-400">Заморожено в эскроу</div>
-                  <div className="text-lg font-bold text-white">{fmt(creatorProfile.balance_on_hold ?? 0)} <span className="text-xs font-normal text-gray-500">KZT</span></div>
+                  <div className="text-lg font-bold text-white">{fmt(walletData?.balance_on_hold ?? creatorProfile.balance_on_hold ?? 0)} <span className="text-xs font-normal text-gray-500">KZT</span></div>
                   <div className="text-[10px] text-gray-500 mt-0.5">Разморозится после подтверждения заказчиком</div>
                 </div>
               </div>

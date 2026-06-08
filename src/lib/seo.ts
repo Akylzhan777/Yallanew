@@ -1,6 +1,6 @@
 const SITE_NAME = 'Yalla Influencers';
 const SITE_URL = 'https://yallainfluencers.com';
-const DEFAULT_IMAGE = `${SITE_URL}/og-image.svg`;
+const DEFAULT_IMAGE = `${SITE_URL}/og-image.jpg`;
 
 export type SeoLang = 'en' | 'ru' | 'ar';
 
@@ -38,7 +38,15 @@ const HOME_SEO: Record<SeoLang, HomeSeoCopy> = {
   },
 };
 
-// Canonical labels for every creator type we support
+const HOME_SEO_KZ: HomeSeoCopy = {
+  title: 'Yalla Influencers | Маркетплейс креаторов №1 в Казахстане',
+  description:
+    'Крупнейший маркетплейс инфлюенсеров, UGC-креаторов и медиа в Казахстане. Безопасно бронируйте блогеров, видеографов, фотографов и Telegram-каналы в Алматы и Астане.',
+  keywords:
+    'маркетплейс инфлюенсеров Казахстан, заказать UGC Алматы, видеограф Астана, реклама у блогеров Казахстан, Telegram реклама Казахстан, UGC креаторы Алматы',
+  ogLocale: 'ru_RU',
+};
+
 const CREATOR_TYPE_LABELS: Record<string, string> = {
   blogger: 'Influencer',
   influencer: 'Influencer',
@@ -81,24 +89,27 @@ function setLink(rel: string, href: string) {
   el.href = href;
 }
 
-function setHreflangLinks() {
-  const langs: Array<{ hreflang: string; href: string }> = [
-    { hreflang: 'en', href: `${SITE_URL}/?lang=en` },
-    { hreflang: 'ru', href: `${SITE_URL}/?lang=ru` },
-    { hreflang: 'ar', href: `${SITE_URL}/?lang=ar` },
-    { hreflang: 'x-default', href: SITE_URL },
-  ];
+function setHreflangLinks(isKZ = false) {
+  document.querySelectorAll('link[rel="alternate"][hreflang]').forEach(el => el.remove());
+
+  const langs = isKZ
+    ? [
+        { hreflang: 'ru', href: `${SITE_URL}/kz?lang=ru` },
+        { hreflang: 'x-default', href: `${SITE_URL}/kz` },
+      ]
+    : [
+        { hreflang: 'en', href: `${SITE_URL}/?lang=en` },
+        { hreflang: 'ru', href: `${SITE_URL}/?lang=ru` },
+        { hreflang: 'ar', href: `${SITE_URL}/?lang=ar` },
+        { hreflang: 'x-default', href: SITE_URL },
+      ];
+
   langs.forEach(({ hreflang, href }) => {
-    let el = document.querySelector<HTMLLinkElement>(
-      `link[rel="alternate"][hreflang="${hreflang}"]`
-    );
-    if (!el) {
-      el = document.createElement('link');
-      el.rel = 'alternate';
-      el.setAttribute('hreflang', hreflang);
-      document.head.appendChild(el);
-    }
+    const el = document.createElement('link');
+    el.rel = 'alternate';
+    el.setAttribute('hreflang', hreflang);
     el.href = href;
+    document.head.appendChild(el);
   });
 }
 
@@ -134,38 +145,38 @@ export function applyCreatorSeo(p: CreatorSeoData) {
   const typeLabel = creatorTypeLabel(p.creator_type);
   const location = p.location || 'Dubai, UAE';
   const category = p.category || '';
+  const isKZ =
+    location.toLowerCase().includes('almaty') ||
+    location.toLowerCase().includes('astana') ||
+    location.toLowerCase().includes('kazakhstan') ||
+    location.toLowerCase().includes('shymkent');
+  const currency = isKZ ? 'KZT' : 'AED';
   const profileUrl = `${SITE_URL}/${p.username}`;
   const image = p.avatar_url ?? DEFAULT_IMAGE;
 
-  // Title: "[Name] – Premium [Type] in [Location] | Yalla Influencers"
   const title = `${p.display_name} – Premium ${typeLabel} in ${location} | ${SITE_NAME}`;
 
-  // Template description with fallback to bio excerpt
   const templatedDesc = `Book ${p.display_name} for your next brand campaign. Professional ${typeLabel}${category ? ` specializing in ${category}` : ''}. View portfolio, packages, and hire directly on Yalla Influencers.`;
   const description = templatedDesc.length > 155 ? templatedDesc.slice(0, 152) + '…' : templatedDesc;
 
-  // Keywords
   const keywords = [
     `${typeLabel} ${location}`,
-    `hire ${typeLabel} Dubai`,
+    `hire ${typeLabel} ${isKZ ? 'Kazakhstan' : 'Dubai'}`,
     `${p.display_name} portfolio`,
-    `${category} content creator UAE`,
-    `freelance ${typeLabel} UAE`,
+    `${category} content creator ${isKZ ? 'Kazakhstan' : 'UAE'}`,
+    `freelance ${typeLabel} ${isKZ ? 'KZ' : 'UAE'}`,
     SITE_NAME,
   ].filter(Boolean).join(', ');
 
-  // ── <title> ──────────────────────────────────────────────────────────────────
   document.title = title;
+  document.documentElement.setAttribute('lang', isKZ ? 'ru' : 'en');
 
-  // ── Basic meta ───────────────────────────────────────────────────────────────
   setMeta('[name="description"]', 'content', description);
   setMeta('[name="keywords"]', 'content', keywords);
   setMeta('[name="robots"]', 'content', 'index, follow');
 
-  // ── Canonical ────────────────────────────────────────────────────────────────
   setLink('canonical', profileUrl);
 
-  // ── Open Graph ───────────────────────────────────────────────────────────────
   setMeta('[property="og:type"]', 'content', 'profile');
   setMeta('[property="og:site_name"]', 'content', SITE_NAME);
   setMeta('[property="og:title"]', 'content', title);
@@ -174,17 +185,15 @@ export function applyCreatorSeo(p: CreatorSeoData) {
   setMeta('[property="og:image"]', 'content', image);
   setMeta('[property="og:image:width"]', 'content', '1200');
   setMeta('[property="og:image:height"]', 'content', '630');
-  setMeta('[property="og:locale"]', 'content', 'en_US');
+  setMeta('[property="og:locale"]', 'content', isKZ ? 'ru_RU' : 'en_US');
   setMeta('[property="profile:username"]', 'content', p.username);
 
-  // ── Twitter Card ─────────────────────────────────────────────────────────────
   setMeta('[name="twitter:card"]', 'content', 'summary_large_image');
   setMeta('[name="twitter:site"]', 'content', '@yallainfluencers');
   setMeta('[name="twitter:title"]', 'content', title);
   setMeta('[name="twitter:description"]', 'content', description);
   setMeta('[name="twitter:image"]', 'content', image);
 
-  // ── JSON-LD: Person + ProfessionalService ─────────────────────────────────────
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': ['Person', 'ProfessionalService'],
@@ -197,7 +206,7 @@ export function applyCreatorSeo(p: CreatorSeoData) {
     address: {
       '@type': 'PostalAddress',
       addressLocality: location,
-      addressCountry: 'AE',
+      addressCountry: isKZ ? 'KZ' : 'AE',
     },
   };
 
@@ -219,7 +228,7 @@ export function applyCreatorSeo(p: CreatorSeoData) {
       name: p.packages[0].name,
       description: p.packages[0].description ?? '',
       price: p.packages[0].price,
-      priceCurrency: 'AED',
+      priceCurrency: currency,
       seller: { '@type': 'Person', name: p.display_name },
       availability: 'https://schema.org/InStock',
     };
@@ -229,7 +238,7 @@ export function applyCreatorSeo(p: CreatorSeoData) {
       name: pk.name,
       description: pk.description ?? '',
       price: pk.price,
-      priceCurrency: 'AED',
+      priceCurrency: currency,
       seller: { '@type': 'Person', name: p.display_name },
       availability: 'https://schema.org/InStock',
     }));
@@ -238,17 +247,20 @@ export function applyCreatorSeo(p: CreatorSeoData) {
   injectJsonLd('creator-jsonld', jsonLd);
 }
 
-export function applyHomeSeo(lang: string | null | undefined) {
-  const code = normalizeLang(lang);
-  const copy = HOME_SEO[code];
+// ── Home SEO ──────────────────────────────────────────────────────────────────
+
+export function applyHomeSeo(lang: string | null | undefined, isKZ = false) {
+  const code = isKZ ? 'ru' : normalizeLang(lang);
+  const copy = isKZ ? HOME_SEO_KZ : HOME_SEO[code];
+  const canonicalUrl = isKZ ? `${SITE_URL}/kz` : SITE_URL;
 
   document.title = copy.title;
   document.documentElement.setAttribute('lang', code);
 
   removeJsonLd('creator-jsonld');
 
-  setLink('canonical', SITE_URL);
-  setHreflangLinks();
+  setLink('canonical', canonicalUrl);
+  setHreflangLinks(isKZ);
 
   setMeta('[name="description"]', 'content', copy.description);
   setMeta('[name="keywords"]', 'content', copy.keywords);
@@ -258,7 +270,7 @@ export function applyHomeSeo(lang: string | null | undefined) {
   setMeta('[property="og:site_name"]', 'content', SITE_NAME);
   setMeta('[property="og:title"]', 'content', copy.title);
   setMeta('[property="og:description"]', 'content', copy.description);
-  setMeta('[property="og:url"]', 'content', SITE_URL);
+  setMeta('[property="og:url"]', 'content', canonicalUrl);
   setMeta('[property="og:image"]', 'content', DEFAULT_IMAGE);
   setMeta('[property="og:image:width"]', 'content', '1200');
   setMeta('[property="og:image:height"]', 'content', '630');
@@ -274,7 +286,7 @@ export function applyHomeSeo(lang: string | null | undefined) {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: SITE_NAME,
-    url: SITE_URL,
+    url: canonicalUrl,
     description: copy.description,
     inLanguage: code,
     potentialAction: {
@@ -289,6 +301,7 @@ export function applyHomeSeo(lang: string | null | undefined) {
 }
 
 export function resetDefaultSeo() {
+  const isKZ = window.location.pathname.startsWith('/kz');
   const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('yalla_lang')) || 'en';
-  applyHomeSeo(saved);
+  applyHomeSeo(saved, isKZ);
 }
