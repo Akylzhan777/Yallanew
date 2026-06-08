@@ -130,9 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        (async () => {
-          await fetchProfile(session.user.id);
-        })();
+        // Defer the profile fetch out of the auth callback to avoid deadlocking
+        // the internal auth lock (per supabase-js guidance), which would hang getSession().
+        setTimeout(() => { fetchProfile(session.user.id); }, 0);
       } else {
         clearCachedProfile();
         setProfile(null);

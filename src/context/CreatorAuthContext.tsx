@@ -80,13 +80,18 @@ export function CreatorAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchCreatorProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('creator_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    setCreatorProfile(data ?? null);
-    return data;
+    try {
+      const { data } = await supabase
+        .from('creator_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      setCreatorProfile(data ?? null);
+      return data;
+    } catch {
+      setCreatorProfile(null);
+      return null;
+    }
   };
 
   const refreshCreatorProfile = async () => {
@@ -94,27 +99,47 @@ export function CreatorAuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchCreatorProfile(session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    let active = true;
+    // Safety net: never let the loading spinner hang forever if the session
+    // check stalls or the Supabase auth lock is contended (getSession can hang).
+    const loadingTimer = setTimeout(() => { if (active) setLoading(false); }, 5000);
+    const stopLoading = () => {
+      clearTimeout(loadingTimer);
+      if (active) setLoading(false);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchCreatorProfile(session.user.id).finally(stopLoading);
+        } else {
+          setCreatorProfile(null);
+          stopLoading();
+        }
+      })
+      .catch(stopLoading);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (!active) return;
       setSession(session);
       setUser(session?.user ?? null);
+      // Defer Supabase calls out of the auth callback to avoid deadlocking the
+      // internal auth lock (per supabase-js guidance), which would hang getSession().
       if (session?.user) {
-        (async () => { await fetchCreatorProfile(session.user.id); })();
+        setTimeout(() => { if (active) fetchCreatorProfile(session.user.id); }, 0);
       } else {
         setCreatorProfile(null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      clearTimeout(loadingTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string) => {
