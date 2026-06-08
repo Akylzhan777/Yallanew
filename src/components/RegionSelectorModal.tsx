@@ -1,5 +1,5 @@
 import { useRegion } from '../context/RegionContext';
-import { Globe } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 
 const regions = [
   {
@@ -8,7 +8,6 @@ const regions = [
     nameLocal: 'الإمارات',
     flag: '🇦🇪',
     description: 'Prices in AED, English interface',
-    colors: { bg: 'rgba(56,189,248,0.03)', border: 'rgba(56,189,248,0.2)', hover: 'rgba(56,189,248,0.08)', arrow: '#38bdf8' },
   },
   {
     id: 'KZ' as const,
@@ -16,71 +15,74 @@ const regions = [
     nameLocal: 'Казахстан',
     flag: '🇰🇿',
     description: 'Prices in KZT, Russian interface',
-    colors: { bg: 'rgba(168,85,247,0.03)', border: 'rgba(168,85,247,0.2)', hover: 'rgba(168,85,247,0.08)', arrow: '#a855f7' },
   },
 ];
 
 export default function RegionSelectorModal() {
-  const { showSelector, setRegion } = useRegion();
+  const { showSelector, setRegion, setShowSelector } = useRegion();
 
   if (!showSelector) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }}
+      dir="ltr"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-neutral-900/80 backdrop-blur-2xl"
     >
-      <div
-        className="w-full max-w-md rounded-3xl overflow-hidden"
-        style={{ background: '#0d1525', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}
-      >
-        <div className="px-8 pt-8 pb-4 text-center">
-          <div
-            className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center"
-            style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)' }}
-          >
-            <Globe size={24} color="#38bdf8" />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Where are you from?</h2>
-          <p className="text-sm" style={{ color: '#64748b' }}>
+      <div className="relative flex w-full max-w-[500px] flex-col items-start justify-start gap-10 overflow-hidden rounded-[32px] bg-neutral-900 px-3 pb-3 pt-10">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={() => setShowSelector(false)}
+          aria-label="Close"
+          className="absolute right-2.5 top-2.5 flex size-6 items-center justify-center opacity-60 transition-opacity hover:opacity-100"
+        >
+          <X className="size-3.5 text-white" strokeWidth={2.5} />
+        </button>
+
+        {/* Header */}
+        <div className="flex w-full flex-col items-start justify-start gap-2.5 px-7">
+          <h2 className="w-full font-sofia-pro text-3xl font-normal leading-8 text-white">
+            Choose Your Region
+          </h2>
+          <p className="w-full font-sofia-pro text-lg font-light leading-6 text-white">
             Select your location to see relevant creators and pricing
           </p>
         </div>
 
-        <div className="px-6 py-6 space-y-3">
-          {regions.map(r => (
+        {/* Region cards */}
+        <div className="flex w-full flex-col items-start justify-start gap-2.5">
+          {regions.map((r) => (
             <button
               key={r.id}
+              type="button"
               onClick={() => setRegion(r.id)}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: r.colors.bg, border: `1.5px solid ${r.colors.border}`, cursor: 'pointer' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = r.colors.border.replace('0.2', '0.5');
-                (e.currentTarget as HTMLElement).style.background = r.colors.hover;
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = r.colors.border;
-                (e.currentTarget as HTMLElement).style.background = r.colors.bg;
-              }}
+              className="flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-3xl bg-zinc-300/10 p-6 text-left transition-colors hover:bg-zinc-300/20 active:bg-zinc-300/25"
             >
-              <span className="text-4xl leading-none flex-shrink-0">{r.flag}</span>
-              <div className="flex-1">
-                <p className="text-white font-semibold text-base">{r.name}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{r.nameLocal}</p>
-                <p className="text-xs mt-1" style={{ color: '#475569' }}>💵 {r.description}</p>
+              <div className="flex flex-1 items-start justify-start gap-2.5">
+                {/* Flag */}
+                <div className="flex size-12 flex-col items-center justify-center gap-2.5 rounded-full bg-white/10">
+                  <span className="font-sofia-pro text-2xl font-normal uppercase leading-9 text-white">
+                    {r.flag}
+                  </span>
+                </div>
+                {/* Texts */}
+                <div className="flex flex-1 flex-col items-start justify-center gap-3">
+                  <div className="flex w-full flex-col items-start justify-start">
+                    <span className="w-full font-sofia-pro text-2xl font-normal leading-8 text-white">
+                      {r.name}
+                    </span>
+                    <span className="w-full font-sofia-pro text-lg font-light leading-6 text-white">
+                      {r.nameLocal}
+                    </span>
+                  </div>
+                  <span className="w-full font-sofia-pro text-sm font-medium leading-4 text-white">
+                    {r.description}
+                  </span>
+                </div>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={r.colors.arrow} strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <ChevronRight className="size-6 flex-shrink-0 text-white" strokeWidth={2} />
             </button>
           ))}
-        </div>
-
-        <div
-          className="px-6 py-4 text-center text-xs"
-          style={{ color: '#64748b', background: 'rgba(15,23,42,0.5)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
-        >
-          You can change this later in settings
         </div>
       </div>
     </div>
