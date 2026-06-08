@@ -21,22 +21,21 @@ interface RegionContextValue {
   setRegion: (r: Region) => void;
   config: RegionConfig;
   showSelector: boolean;
-  setShowSelector: (show: boolean) => void;
   formatPrice: (amount: number) => string;
 }
 
 const RegionContext = createContext<RegionContextValue | null>(null);
 
-function getStoredRegion(): Region | null {
-  const stored = localStorage.getItem('selectedRegion');
-  if (stored === 'UAE' || stored === 'KZ') return stored;
-  return null;
+function detectRegionFromUrl(): Region {
+  const path = window.location.pathname.toLowerCase();
+  if (path === '/kz' || path.startsWith('/kz/')) return 'KZ';
+  return 'UAE';
 }
 
 export function RegionProvider({ children }: { children: ReactNode }) {
-  const storedRegion = getStoredRegion();
-  const [region, setRegionState] = useState<Region>(storedRegion || 'UAE');
-  const [showSelector, setShowSelector] = useState(!storedRegion);
+  const urlRegion = detectRegionFromUrl();
+  const [region, setRegionState] = useState<Region>(urlRegion);
+  const [showSelector, setShowSelector] = useState(false);
 
   const setRegion = (r: Region) => {
     setRegionState(r);
@@ -47,15 +46,17 @@ export function RegionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const lang = REGION_CONFIG[region].defaultLanguage;
+    localStorage.setItem('selectedRegion', urlRegion);
+    const lang = REGION_CONFIG[urlRegion].defaultLanguage;
     if (i18n.language !== lang) i18n.changeLanguage(lang);
-  }, [region]);
+  }, []);
 
   const config = REGION_CONFIG[region];
+
   const formatPrice = (amount: number) => `${amount.toLocaleString()} ${config.currency}`;
 
   return (
-    <RegionContext.Provider value={{ region, setRegion, config, showSelector, setShowSelector, formatPrice }}>
+    <RegionContext.Provider value={{ region, setRegion, config, showSelector, formatPrice }}>
       {children}
     </RegionContext.Provider>
   );
@@ -67,6 +68,8 @@ export function useRegion() {
   return ctx;
 }
 
+// Pure helper — formats a price in the currency of the given region,
+// ignoring the visitor's global region state. Use this on creator-owned pages.
 export function formatPriceForRegion(amount: number, region: Region): string {
   return `${amount.toLocaleString()} ${REGION_CONFIG[region].currency}`;
 }

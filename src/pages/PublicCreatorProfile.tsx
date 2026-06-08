@@ -8,7 +8,6 @@ import { applyCreatorSeo, resetDefaultSeo } from '../lib/seo';
 
 interface PublicProfile {
   id: string;
-  user_id: string;
   display_name: string;
   handle: string | null;
   username: string;
@@ -122,13 +121,12 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
     if (order && status === 'on_hold') {
       await supabase.from('creator_transactions').insert({
         creator_id: profile.id,
-        user_id: profile.user_id,
         order_id: order.id,
         type: 'order_payment',
         status: 'on_hold',
         amount: clientPrice,
         net_amount: net,
-        commission_amount: commission,
+        platform_fee: commission,
         description: `Order from ${form.name} — ${pkg.name} (on hold)`,
       });
       await supabase.rpc('upsert_creator_wallet_on_hold', {
@@ -614,7 +612,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
 
     supabase
       .from('creator_profiles')
-      .select('id, user_id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
+      .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
       .eq('username', username.toLowerCase())
       .maybeSingle()
       .then(({ data, error }) => {
@@ -1156,10 +1154,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
               {t('marketplace.brandGate.cta', 'Зарегистрироваться как Бренд')}
             </button>
             <button
-              onClick={() => {
-                localStorage.setItem('brand_checkout_intent', JSON.stringify({ username }));
-                window.location.href = '/brand/signup?mode=login';
-              }}
+              onClick={() => { window.location.href = '/brand/signup?mode=login'; }}
               className="w-full mt-3 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-white/5"
               style={{ color: '#64748b', border: '1px solid rgba(255,255,255,0.06)' }}
             >

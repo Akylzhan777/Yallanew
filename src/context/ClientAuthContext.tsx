@@ -39,26 +39,22 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
 
   async function fetchClientProfile(userId: string) {
-    try {
-      const { data } = await supabase
+    const { data } = await supabase
+      .from('client_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (data) {
+      setClientProfile(data);
+    } else {
+      // Retry once after a short delay (handles replication lag after signup)
+      await new Promise(r => setTimeout(r, 500));
+      const { data: retry } = await supabase
         .from('client_profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
-      if (data) {
-        setClientProfile(data);
-      } else {
-        // Retry once after a short delay (handles replication lag after signup)
-        await new Promise(r => setTimeout(r, 500));
-        const { data: retry } = await supabase
-          .from('client_profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        setClientProfile(retry ?? null);
-      }
-    } catch {
-      setClientProfile(null);
+      setClientProfile(retry ?? null);
     }
   }
 
@@ -67,52 +63,27 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   }
 
   useEffect(() => {
-    let active = true;
     let initialDone = false;
-    // Safety net so the loading spinner can never hang forever if the session
-    // check stalls or the Supabase auth lock is contended.
-    const loadingTimer = setTimeout(() => { if (active) setLoading(false); }, 5000);
-    const stopLoading = () => {
-      clearTimeout(loadingTimer);
-      if (active) setLoading(false);
-    };
 
-    supabase.auth.getSession()
-      .then(({ data: { session: s } }) => {
-        if (!active) return;
-        setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          fetchClientProfile(s.user.id).finally(() => { initialDone = true; stopLoading(); });
-        } else {
-          initialDone = true;
-          stopLoading();
-        }
-      })
-      .catch(() => { initialDone = true; stopLoading(); });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
-      if (!active) return;
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      // Defer Supabase calls out of the auth callback to avoid deadlocking the
-      // internal auth lock (per supabase-js guidance), which would hang getSession().
+      if (s?.user) fetchClientProfile(s.user.id).finally(() => { initialDone = true; setLoading(false); });
+      else { initialDone = true; setLoading(false); }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      setUser(s?.user ?? null);
       if (s?.user) {
-        setTimeout(() => {
-          if (!active) return;
-          fetchClientProfile(s.user.id).finally(() => { if (initialDone) stopLoading(); });
-        }, 0);
+        fetchClientProfile(s.user.id).finally(() => { if (initialDone) setLoading(false); });
       } else {
         setClientProfile(null);
-        if (initialDone) stopLoading();
+        if (initialDone) setLoading(false);
       }
     });
 
-    return () => {
-      active = false;
-      clearTimeout(loadingTimer);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   async function signIn(email: string, password: string) {
