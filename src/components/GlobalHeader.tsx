@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, LogOut, ChevronDown, Zap } from 'lucide-react';
+import { LayoutDashboard, LogOut, ChevronDown, Zap, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { useRegion } from '../context/RegionContext';
+import { useAppPreferences, REGION_OPTIONS, type Region } from '../context/AppPreferencesContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
 type PageType = 'home' | 'ideas' | 'academy' | 'gallery' | 'calendar' | 'scripts' | 'referral' | 'collabs' | 'shop';
@@ -14,38 +14,42 @@ interface Props {
 
 export default function GlobalHeader({ setPage, onOpenDashboard }: Props) {
   const { user, profile, signOut } = useAuth();
-  const { region, setRegion } = useRegion();
+  const { selectedRegion, setSelectedRegion, regionOption } = useAppPreferences();
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [regionMenuOpen, setRegionMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const regionMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+      if (regionMenuRef.current && !regionMenuRef.current.contains(e.target as Node)) setRegionMenuOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleSignOut = async () => {
-    setOpen(false);
+    setUserMenuOpen(false);
     await signOut();
     window.location.replace('/');
   };
 
   const handleDashboard = () => {
-    setOpen(false);
+    setUserMenuOpen(false);
     if (profile?.role === 'admin') { window.location.href = '/admin'; return; }
     if (profile?.role === 'manager') { window.location.href = '/manager-panel'; return; }
-    // Client/brand users always go to their own dashboard
-    if (
-      profile?.role === 'client' ||
-      user?.user_metadata?.portal === 'client'
-    ) {
+    if (profile?.role === 'client' || user?.user_metadata?.portal === 'client') {
       window.location.href = '/brand/dashboard';
       return;
     }
     onOpenDashboard();
+  };
+
+  const handleRegionSelect = (r: Region) => {
+    setSelectedRegion(r);
+    setRegionMenuOpen(false);
   };
 
   return (
@@ -59,7 +63,7 @@ export default function GlobalHeader({ setPage, onOpenDashboard }: Props) {
       WebkitBackdropFilter: 'blur(20px)',
       borderBottom: '1px solid rgba(255,255,255,0.06)',
     }}>
-      {/* Left: logo / home */}
+      {/* Logo */}
       <button
         onClick={() => setPage('home')}
         style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -78,22 +82,74 @@ export default function GlobalHeader({ setPage, onOpenDashboard }: Props) {
       </button>
 
       {/* Right cluster */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          onClick={() => setRegion(region === 'UAE' ? 'KZ' : 'UAE')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-125"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}
-          title="Switch region"
-        >
-          <span>{region === 'UAE' ? '\u{1F1E6}\u{1F1EA}' : '\u{1F1F0}\u{1F1FF}'}</span>
-          <span>{region}</span>
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+        {/* Region dropdown */}
+        <div ref={regionMenuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setRegionMenuOpen(o => !o)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-125"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', cursor: 'pointer' }}
+            title="Select region"
+          >
+            {selectedRegion === 'ALL'
+              ? <Globe size={12} style={{ color: '#64748b' }} />
+              : <span style={{ fontSize: '0.9em' }}>{regionOption.flag}</span>
+            }
+            <span>{selectedRegion === 'ALL' ? 'All' : selectedRegion}</span>
+            <ChevronDown
+              size={10}
+              color="#64748b"
+              style={{ transition: 'transform 0.2s', transform: regionMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            />
+          </button>
+
+          {regionMenuOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+              background: '#0f1520', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 12, padding: 4, minWidth: 180,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.55)',
+              zIndex: 300,
+            }}>
+              {REGION_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleRegionSelect(opt.value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                    padding: '8px 12px', borderRadius: 8, background: 'none', border: 'none',
+                    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
+                    color: selectedRegion === opt.value ? '#00C48C' : '#e2e8f0',
+                    fontSize: '0.8rem', fontWeight: selectedRegion === opt.value ? 700 : 500,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: '1em', width: 18, textAlign: 'center', flexShrink: 0 }}>
+                    {opt.value === 'ALL' ? '🌍' : opt.flag}
+                  </span>
+                  <div>
+                    <div style={{ lineHeight: 1.2 }}>{opt.label}</div>
+                    {opt.currency && (
+                      <div style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1 }}>{opt.currency}</div>
+                    )}
+                  </div>
+                  {selectedRegion === opt.value && (
+                    <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#00C48C', flexShrink: 0 }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <LanguageSwitcher variant="dark" />
 
         {user ? (
-          <div ref={ref} style={{ position: 'relative' }}>
+          <div ref={userMenuRef} style={{ position: 'relative' }}>
             <button
-              onClick={() => setOpen(o => !o)}
+              onClick={() => setUserMenuOpen(o => !o)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 background: 'rgba(255,255,255,0.04)',
@@ -117,11 +173,11 @@ export default function GlobalHeader({ setPage, onOpenDashboard }: Props) {
               <ChevronDown
                 size={12}
                 color="#64748b"
-                style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                style={{ transition: 'transform 0.2s', transform: userMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               />
             </button>
 
-            {open && (
+            {userMenuOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 6px)', right: 0,
                 background: '#0f1520', border: '1px solid rgba(255,255,255,0.1)',

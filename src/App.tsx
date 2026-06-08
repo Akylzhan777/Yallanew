@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { CreatorAuthProvider, useCreatorAuth } from './context/CreatorAuthContext';
-import { RegionProvider } from './context/RegionContext';
-import RegionSelectorModal from './components/RegionSelectorModal';
+import { AppPreferencesProvider } from './context/AppPreferencesContext';
 import GlobalHeader from './components/GlobalHeader';
 import PaymentModal from './components/PaymentModal';
 import OperatorSelector, { Operator } from './components/OperatorSelector';
@@ -41,7 +40,6 @@ import OperatorPortal from './pages/OperatorPortal';
 import JobApplication from './pages/JobApplication';
 import PublicCreatorProfile from './pages/PublicCreatorProfile';
 import CreatorBookingPage from './pages/CreatorBookingPage';
-import KzCreatorBookingPage from './pages/KzCreatorBookingPage';
 import Presentation from './pages/Presentation';
 import { getDashboardPathForCreatorType } from './lib/dashboardRouting';
 import GeoLandingPage from './pages/GeoLandingPage';
@@ -65,14 +63,14 @@ const isCreatorAuthRoute = pathname === '/creator-login' || pathname === '/creat
 const isCreatorOnboardingRoute = pathname === '/creator-onboarding' || pathname === '/creator-onboarding/';
 const isCreatorDashboardRoute = pathname === '/creator-dashboard' || pathname === '/creator-dashboard/';
 const isAdminMarketplaceRoute = pathname === '/admin-marketplace' || pathname === '/admin-marketplace/';
-const isKzRoute = pathname === '/kz' || pathname === '/kz/' || pathname.startsWith('/kz/');
 const isClientAuthRoute = pathname === '/client-login' || pathname === '/client-login/' || pathname === '/brand/signup' || pathname === '/brand/signup/';
 const isClientDashboardRoute = pathname === '/client-dashboard' || pathname === '/client-dashboard/' || pathname === '/brand/dashboard' || pathname === '/brand/dashboard/';
 const isPresentationRoute = pathname === '/presentation' || pathname === '/presentation/';
-const isCreatorBookingRoute = pathname.startsWith('/book/');
-const creatorBookingHandle = isCreatorBookingRoute ? pathname.replace(/^\/book\//, '').replace(/\/$/, '') : null;
-const isKzBookingRoute = pathname.startsWith('/booking/') && pathname !== '/booking/';
-const kzBookingUsername = isKzBookingRoute ? pathname.replace(/^\/booking\//, '').replace(/\/$/, '') : null;
+// Unified booking route: /book/[username] (was also /booking/[username] for KZ — now merged)
+const isCreatorBookingRoute = pathname.startsWith('/book/') || (pathname.startsWith('/booking/') && pathname !== '/booking/');
+const creatorBookingHandle = isCreatorBookingRoute
+  ? pathname.replace(/^\/(book|booking)\//, '').replace(/\/$/, '')
+  : null;
 
 // Path segments — must be declared before any route logic that uses them
 const pathSegments = pathname.replace(/^\/|\/$/g, '').split('/');
@@ -119,7 +117,7 @@ const RESERVED_PATHS = new Set([
   'creator-login', 'creator-dashboard', 'creator-onboarding', 'admin-marketplace',
   'client-login', 'client-dashboard', 'editor-dashboard', 'production-dashboard', 'telegram-dashboard', 'presentation',
   'brand', 'www', 'app', 'mail', 'support', 'help', 'about', 'terms', 'privacy',
-  'blog', 'shop', 'marketplace', 'home', 'index', 'kz', 'ae',
+  'blog', 'shop', 'marketplace', 'home', 'index', 'ae',
   // filter landing type slugs — must never be creator usernames
   'ugc-creators', 'influencers', 'bloggers', 'videographers', 'photographers', 'models', 'editors', 'creators',
 ]);
@@ -414,7 +412,6 @@ export default function App() {
   if (isCancelRoute) return <CancelBooking />;
   if (isBookingRoute) return <BookingPage />;
   if (isCreatorBookingRoute && creatorBookingHandle) return <CreatorBookingPage handle={creatorBookingHandle} />;
-  if (isKzBookingRoute && kzBookingUsername) return <KzCreatorBookingPage username={kzBookingUsername} />;
   if (isEditorRoute) return <EditorPortal />;
   if (isOperatorRoute) return <OperatorPortal />;
   if (isJobRoute) return <JobApplication />;
@@ -430,7 +427,7 @@ export default function App() {
   }
   if (isGeoLandingRoute && geoNiche && geoCity) return <GeoLandingPage niche={geoNiche} city={geoCity} />;
   if (isFilterRoute && filterTypeSlug && filterLocationSlug) return <FilterLandingPage typeSlug={filterTypeSlug} locationSlug={filterLocationSlug} languageSlug={filterLangSlug ?? undefined} categorySlug={filterCatSlug ?? undefined} />;
-  if (isPublicCreatorRoute && creatorUsernameFromPath) return <RegionProvider><PublicCreatorProfile username={creatorUsernameFromPath} /><RegionSelectorModal /></RegionProvider>;
+  if (isPublicCreatorRoute && creatorUsernameFromPath) return <AppPreferencesProvider><PublicCreatorProfile username={creatorUsernameFromPath} /></AppPreferencesProvider>;
 
   // Creator-specific routes — isolated from main app auth, with strict role-based dashboard guards
   if (
@@ -442,37 +439,35 @@ export default function App() {
     isTelegramDashboardRoute
   ) {
     return (
-      <RegionProvider>
+      <AppPreferencesProvider>
         <CreatorAuthProvider>
           <CreatorRoutes />
         </CreatorAuthProvider>
-      </RegionProvider>
+      </AppPreferencesProvider>
     );
   }
 
   // Client (advertiser) routes — isolated auth context
   if (isClientAuthRoute || isClientDashboardRoute) {
     return (
-      <RegionProvider>
+      <AppPreferencesProvider>
         <ClientAuthProvider>
           <ClientRoutes />
-          <RegionSelectorModal />
         </ClientAuthProvider>
-      </RegionProvider>
+      </AppPreferencesProvider>
     );
   }
 
   return (
-    <RegionProvider>
+    <AppPreferencesProvider>
       <AppSettingsProvider>
         <AuthProvider>
           <AppContent />
-          <RegionSelectorModal />
           {showLangPicker && (
             <LanguagePickerModal onClose={() => setShowLangPicker(false)} />
           )}
         </AuthProvider>
       </AppSettingsProvider>
-    </RegionProvider>
+    </AppPreferencesProvider>
   );
 }

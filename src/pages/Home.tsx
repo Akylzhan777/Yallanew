@@ -4,7 +4,7 @@ import i18n from '../lib/i18n';
 import { Search, Star, Users, Play, Instagram, Youtube, ChevronRight, ChevronDown, X, Check, ArrowRight, UserPlus, Send, LayoutDashboard, LogOut, Briefcase } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
-import { useRegion } from '../context/RegionContext';
+import { useAppPreferences } from '../context/AppPreferencesContext';
 import JoinLanguageSelector from '../components/JoinLanguageSelector';
 import { supabase } from '../lib/supabase';
 
@@ -250,7 +250,7 @@ function ClientOrdersPanel({ onClose }: { onClose: () => void }) {
 export default function Home({ isGuest, onLoginRequest }: HomeProps) {
   const { t } = useTranslation();
   const { profile, signOut } = useAuth();
-  const { region, formatPrice, config: regionConfig } = useRegion();
+  const { selectedRegion, formatPrice } = useAppPreferences();
   const [search, setSearch] = useState('');
   const [platform, setPlatform] = useState<Platform>('all');
   const [category, setCategory] = useState<Category>('all');
@@ -357,14 +357,15 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
   }, []);
 
   useEffect(() => {
-    supabase
-      .from('creator_profiles').select('*').eq('is_published', true).eq('is_hidden', false).neq('status', 'banned').neq('status', 'hidden').eq('region', region)
-      .order('is_promoted', { ascending: false }).order('is_featured', { ascending: false }).order('created_at', { ascending: false })
+    let q = supabase
+      .from('creator_profiles').select('*').eq('is_published', true).eq('is_hidden', false).neq('status', 'banned').neq('status', 'hidden');
+    if (selectedRegion !== 'ALL') q = q.eq('region', selectedRegion);
+    q.order('is_promoted', { ascending: false }).order('is_featured', { ascending: false }).order('created_at', { ascending: false })
       .then(({ data }) => {
         setDbCreators((data ?? []).map(p => dbProfileToCreator(p as Record<string, unknown>)));
         setCreatorsLoaded(true);
       });
-  }, [region]);
+  }, [selectedRegion]);
 
   const filtered = useMemo(() => {
     const list = dbCreators.filter(c => {
@@ -483,15 +484,15 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
                   fontFamily: "'sofia-pro', 'Sofia Pro', sans-serif",
                   maxWidth: 595,
                 }}>
-                {i18n.language === 'en' && heroData?.heading_line1 ? heroData.heading_line1 : t(region === 'KZ' ? 'marketplace.heroLine1_kz' : 'marketplace.heroLine1')}{' '}
+                {i18n.language === 'en' && heroData?.heading_line1 ? heroData.heading_line1 : t(selectedRegion === 'KZ' ? 'marketplace.heroLine1_kz' : 'marketplace.heroLine1')}{' '}
                 <span style={{ background: 'linear-gradient(135deg, #FFC360 0%, #E17D00 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {i18n.language === 'en' && heroData?.heading_accent ? heroData.heading_accent : t(region === 'KZ' ? 'marketplace.heroAccent_kz' : 'marketplace.heroAccent')}
+                  {i18n.language === 'en' && heroData?.heading_accent ? heroData.heading_accent : t(selectedRegion === 'KZ' ? 'marketplace.heroAccent_kz' : 'marketplace.heroAccent')}
                 </span>
-                {' '}{i18n.language === 'en' && heroData?.heading_line2 ? heroData.heading_line2 : t(region === 'KZ' ? 'marketplace.heroLine2_kz' : 'marketplace.heroLine2')}
+                {' '}{i18n.language === 'en' && heroData?.heading_line2 ? heroData.heading_line2 : t(selectedRegion === 'KZ' ? 'marketplace.heroLine2_kz' : 'marketplace.heroLine2')}
               </h1>
 
               <p className="text-lg text-white/70 max-w-lg mt-6">
-                {i18n.language === 'en' && heroData?.subtitle ? heroData.subtitle : t(region === 'KZ' ? 'marketplace.heroSubtitle_kz' : 'marketplace.heroSubtitle')}
+                {i18n.language === 'en' && heroData?.subtitle ? heroData.subtitle : t(selectedRegion === 'KZ' ? 'marketplace.heroSubtitle_kz' : 'marketplace.heroSubtitle')}
               </p>
 
               {/* Search bar */}
@@ -658,7 +659,7 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
                   className="w-16 text-xs text-center bg-transparent outline-none"
                   style={{ color: '#171717' }}
                 />
-                <span className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>{regionConfig.currency}</span>
+                <span className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>{selectedRegion === 'KZ' ? '₸' : 'AED'}</span>
               </div>
 
               {/* Reset */}
