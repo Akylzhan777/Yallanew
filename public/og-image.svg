@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#0A0C10"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#00C48C"/>
+  <circle cx="600" cy="280" r="220" fill="rgba(0,196,140,0.04)" stroke="rgba(0,196,140,0.12)" stroke-width="1"/>
+  <circle cx="600" cy="280" r="160" fill="rgba(0,196,140,0.05)" stroke="rgba(0,196,140,0.1)" stroke-width="1"/>
+  <text x="600" y="220" font-family="'Arial Black', Arial, sans-serif" font-size="110" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-2">YALLA</text>
+  <text x="600" y="310" font-family="Arial, sans-serif" font-size="28" font-weight="400" fill="#00C48C" text-anchor="middle" letter-spacing="8">INFLUENCERS</text>
+  <text x="600" y="390" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="rgba(255,255,255,0.45)" text-anchor="middle" letter-spacing="2">PROFESSIONAL PRODUCTION &amp; BOOKING · DUBAI</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A0C10"/>
+      <stop offset="50%" stop-color="#0d1a14"/>
+      <stop offset="100%" stop-color="#0A0C10"/>
+    </linearGradient>
+  </defs>
+</svg>

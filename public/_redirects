@@ -1,0 +1,4 @@
+/sitemap.xml  https://cybxtdcomnmswqrworzc.supabase.co/functions/v1/sitemap  200
+
+# SPA catch-all: all routes serve index.html, React handles routing client-side
+/*  /index.html  200

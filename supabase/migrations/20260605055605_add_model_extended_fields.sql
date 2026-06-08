@@ -1,0 +1,11 @@
+-- Add extended model fields: measurements, skills, video comp card
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_bust text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_waist text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_hips text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_shoe_size text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_clothing_size text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_hair_color text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_eye_color text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_skills text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS model_features text;
+ALTER TABLE creator_profiles ADD COLUMN IF NOT EXISTS video_comp_url text;
