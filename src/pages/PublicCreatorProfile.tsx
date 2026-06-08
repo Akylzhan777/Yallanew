@@ -607,13 +607,15 @@ function PublicCreatorProfile({ username }: { username: string }) {
   useEffect(() => {
     if (!username) { setProfile(null); return; }
 
+    const cleanUsername = username.replace(/^@/, '').toLowerCase();
+
     // Safety timeout — if query never resolves, show NotFound after 8s
     const timeout = setTimeout(() => setProfile(null), 8000);
 
     supabase
       .from('creator_profiles')
       .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
-      .eq('username', username.toLowerCase())
+      .eq('username', cleanUsername)
       .maybeSingle()
       .then(({ data, error }) => {
         clearTimeout(timeout);
@@ -653,7 +655,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   }, [profile]);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${username}`;
+    const url = `${window.location.origin}/${username.replace(/^@/, '')}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

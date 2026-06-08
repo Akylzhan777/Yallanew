@@ -124,13 +124,16 @@ const RESERVED_PATHS = new Set([
   'ugc-creators', 'influencers', 'bloggers', 'videographers', 'photographers', 'models', 'editors', 'creators',
 ]);
 
-// Detect /[username] — single-segment path that is not a reserved word
+// Detect /[username] or /@[username] — single-segment path that is not a reserved word
+// Strip leading @ to normalize handles copied from social media
+const rawSegment = pathSegments[0] ?? '';
+const cleanedSegment = rawSegment.startsWith('@') ? rawSegment.slice(1) : rawSegment;
 const isPublicCreatorRoute =
   pathSegments.length === 1 &&
-  pathSegments[0].length >= 3 &&
-  /^[a-z0-9_-]+$/.test(pathSegments[0]) &&
-  !RESERVED_PATHS.has(pathSegments[0]);
-const creatorUsernameFromPath = isPublicCreatorRoute ? pathSegments[0] : null;
+  cleanedSegment.length >= 3 &&
+  /^[a-z0-9_.-]+$/.test(cleanedSegment) &&
+  !RESERVED_PATHS.has(cleanedSegment);
+const creatorUsernameFromPath = isPublicCreatorRoute ? cleanedSegment : null;
 
 if (isAdminRoute) {
   localStorage.removeItem('yalla_profile_cache');
@@ -399,6 +402,12 @@ function CreatorRoutes() {
 
 export default function App() {
   const [showLangPicker, setShowLangPicker] = useState(!hasChosenLanguage());
+
+  // Redirect /@username → /username for canonical URLs
+  if (rawSegment.startsWith('@') && cleanedSegment.length >= 3) {
+    window.location.replace(`/${cleanedSegment}${window.location.search}`);
+    return null;
+  }
 
   if (isPresentationRoute) return <Presentation />;
   if (isCancelRoute) return <CancelBooking />;
