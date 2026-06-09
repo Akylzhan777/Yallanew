@@ -119,7 +119,7 @@ export default function CreatorOnboarding() {
     : CREATOR_TYPES;
   const [creatorType, setCreatorType] = useState<string>(creatorProfile?.creator_type ?? (region === 'KZ' ? '' : 'blogger'));
   const [category, setCategory] = useState(creatorProfile?.category ?? 'lifestyle');
-  const [location, setLocation] = useState(creatorProfile?.location ?? (region === 'KZ' ? 'Almaty, KZ' : 'Dubai, UAE'));
+  const [location, setLocation] = useState(creatorProfile?.location ?? (region === 'KZ' ? 'Алматы, KZ' : 'Dubai, UAE'));
   const [languages, setLanguages] = useState<string[]>(creatorProfile?.languages ?? ['English']);
 
   // Model-specific state (Step 1)
@@ -677,10 +677,18 @@ export default function CreatorOnboarding() {
               </div>
               <div>
                 <label className={labelCls}><span className="flex items-center gap-1"><MapPin size={11} /> {t('onboarding.location')}</span></label>
-                <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Dubai, UAE" className={inputCls}
-                  onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,196,140,0.4)'}
-                  onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                />
+                {region === 'KZ' ? (
+                  <select value={location} onChange={e => setLocation(e.target.value)} className={inputCls + ' cursor-pointer'} style={{ colorScheme: 'dark' }}>
+                    {['Алматы, KZ', 'Астана, KZ', 'Шымкент, KZ', 'Туркестан, KZ', 'Актобе, KZ', 'Караганда, KZ', 'Атырау, KZ', 'Тараз, KZ', 'Павлодар, KZ', 'Усть-Каменогорск, KZ', 'Семей, KZ', 'Кызылорда, KZ', 'Костанай, KZ', 'Уральск, KZ', 'Петропавловск, KZ', 'Актау, KZ'].map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Dubai, UAE" className={inputCls}
+                    onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,196,140,0.4)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                  />
+                )}
               </div>
             </div>
 
