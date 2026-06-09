@@ -11,11 +11,8 @@ export function getDashboardPathForCreatorType(
   creatorType: string | null | undefined
 ): string {
   if (creatorType === 'editor') return '/editor-dashboard';
-  if (creatorType === 'videographer' || creatorType === 'photographer') {
-    return '/production-dashboard';
-  }
   if (creatorType === 'telegram_channel') return '/telegram-dashboard';
-  return '/creator-dashboard';
+  return '/production-dashboard';
 }
 
 export function isAllowedOn(
