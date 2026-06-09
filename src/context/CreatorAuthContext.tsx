@@ -41,6 +41,12 @@ export interface CreatorProfile {
   updated_at: string;
 }
 
+export interface CreatorPackageAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CreatorPackage {
   id: string;
   name: string;
@@ -49,6 +55,7 @@ export interface CreatorPackage {
   clientPrice?: number;
   deliveryDays: number;
   includes: string[];
+  addons?: CreatorPackageAddon[];
 }
 
 interface CreatorAuthContextType {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Check, ChevronRight, Plus, Trash2, Upload, Instagram, Youtube, Play, Globe, MapPin, Languages, Zap, X, AtSign, Loader, Phone, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
-import { useCreatorAuth, CreatorPackage } from '../context/CreatorAuthContext';
+import { useCreatorAuth, CreatorPackage, CreatorPackageAddon } from '../context/CreatorAuthContext';
 import { useRegion } from '../context/RegionContext';
 import { getDashboardPathForCreatorType } from '../lib/dashboardRouting';
 import { sendWhatsAppWelcome } from '../lib/whatsapp';
@@ -470,6 +470,18 @@ export default function CreatorOnboarding() {
   };
   const removeInclude = (pkgId: string, idx: number) => {
     setPackages(prev => prev.map(p => p.id === pkgId ? { ...p, includes: p.includes.filter((_, i) => i !== idx) } : p));
+  };
+  const addAddon = (pkgId: string) => {
+    const newAddon: CreatorPackageAddon = { id: crypto.randomUUID(), name: '', price: 0 };
+    setPackages(prev => prev.map(p => p.id === pkgId ? { ...p, addons: [...(p.addons ?? []), newAddon] } : p));
+  };
+  const updateAddon = (pkgId: string, addonId: string, field: keyof CreatorPackageAddon, value: unknown) => {
+    setPackages(prev => prev.map(p => p.id === pkgId
+      ? { ...p, addons: (p.addons ?? []).map(a => a.id === addonId ? { ...a, [field]: value } : a) }
+      : p));
+  };
+  const removeAddon = (pkgId: string, addonId: string) => {
+    setPackages(prev => prev.map(p => p.id === pkgId ? { ...p, addons: (p.addons ?? []).filter(a => a.id !== addonId) } : p));
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1156,6 +1168,52 @@ export default function CreatorOnboarding() {
                       <button onClick={() => addInclude(pkg.id)} className="flex items-center gap-1.5 text-xs py-1.5 transition-colors" style={{ color: '#475569' }}
                         onMouseEnter={e => e.currentTarget.style.color = '#00C48C'} onMouseLeave={e => e.currentTarget.style.color = '#475569'}>
                         <Plus size={12} /> {t('onboarding.addItem')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Add-ons ── */}
+                  <div>
+                    <label className={labelCls}>{region === 'KZ' ? 'Дополнительные опции' : 'Add-on Options'}</label>
+                    <div className="space-y-2">
+                      {(pkg.addons ?? []).map(addon => (
+                        <div key={addon.id} className="flex gap-2 items-center">
+                          <input
+                            value={addon.name}
+                            onChange={e => updateAddon(pkg.id, addon.id, 'name', e.target.value)}
+                            placeholder={region === 'KZ' ? 'Название (напр. С монтажом)' : 'Name (e.g. With editing)'}
+                            className={inputCls + ' flex-1'}
+                            onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,196,140,0.4)'}
+                            onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                          />
+                          <div className="relative flex-shrink-0" style={{ width: 110 }}>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{ color: '#64748b' }}>+</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={addon.price || ''}
+                              onChange={e => updateAddon(pkg.id, addon.id, 'price', Number(e.target.value))}
+                              placeholder="0"
+                              className={inputCls}
+                              style={{ paddingLeft: '1.5rem' }}
+                              onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,196,140,0.4)'}
+                              onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                            />
+                          </div>
+                          <span className="text-xs flex-shrink-0" style={{ color: '#475569' }}>{currency}</span>
+                          <button onClick={() => removeAddon(pkg.id, addon.id)} className="p-2 rounded-lg flex-shrink-0" style={{ color: '#374151' }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => addAddon(pkg.id)}
+                        className="flex items-center gap-1.5 text-xs py-1.5 transition-colors"
+                        style={{ color: '#475569' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#00C48C'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+                      >
+                        <Plus size={12} /> {region === 'KZ' ? 'Добавить опцию' : 'Add option'}
                       </button>
                     </div>
                   </div>
