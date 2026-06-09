@@ -265,7 +265,17 @@ export default function CreatorOnboarding() {
           if (!tgChannelUrl.trim()) { setError('Please enter your Telegram channel URL.'); setSaving(false); return; }
           if (!tgChannelUrl.trim().startsWith('https://t.me/')) { setError('Channel URL must start with https://t.me/'); setSaving(false); return; }
         }
-        payload = { ...payload, display_name: displayName.trim(), username: username.trim(), handle: username.trim(), bio: bio.trim(), creator_type: creatorType, category, location, languages, whatsapp_number: whatsapp.trim(), preferred_language: langCodeFromList(languages), ...(creatorType === 'telegram_channel' ? { tg_channel_url: tgChannelUrl.trim(), legal_info: { licenseNo: licenseNo.trim(), advertiserPermit: advertiserPermit.trim() } } : {}), ...(creatorType === 'model' ? { model_height: modelHeight.trim(), model_weight: modelWeight.trim(), model_age: modelAge.trim(), model_nationality: modelNationality.trim() } : {}) };
+        // TODO: Implement Auto-Translation here
+        // When a translation API is available, call it with bio.trim() as the source text
+        // and populate bio_en / bio_ru / bio_ar with the translated results before saving.
+        // For now, the typed bio is stored in all three columns as a placeholder.
+        const bioText = bio.trim();
+        const bioTranslations = {
+          bio_en: bioText, // TODO: replace with translated English text
+          bio_ru: bioText, // TODO: replace with translated Russian text
+          bio_ar: bioText, // TODO: replace with translated Arabic text
+        };
+        payload = { ...payload, display_name: displayName.trim(), username: username.trim(), handle: username.trim(), bio: bioText, ...bioTranslations, creator_type: creatorType, category, location, languages, whatsapp_number: whatsapp.trim(), preferred_language: langCodeFromList(languages), ...(creatorType === 'telegram_channel' ? { tg_channel_url: tgChannelUrl.trim(), legal_info: { licenseNo: licenseNo.trim(), advertiserPermit: advertiserPermit.trim() } } : {}), ...(creatorType === 'model' ? { model_height: modelHeight.trim(), model_weight: modelWeight.trim(), model_age: modelAge.trim(), model_nationality: modelNationality.trim() } : {}) };
       } else if (step === 2) {
         if (creatorType === 'telegram_channel') {
           if (!tgSubscribers.trim()) { setError('Please enter your subscriber count.'); setSaving(false); return; }

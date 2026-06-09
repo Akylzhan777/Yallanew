@@ -8,6 +8,9 @@ export interface CreatorProfile {
   display_name: string;
   handle: string | null;
   bio: string;
+  bio_en: string | null;
+  bio_ru: string | null;
+  bio_ar: string | null;
   creator_type: 'blogger' | 'model' | 'ugc' | 'videographer' | 'photographer' | 'editor';
   category: string;
   location: string;
