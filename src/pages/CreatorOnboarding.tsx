@@ -71,6 +71,17 @@ const CREATOR_TYPES = [
   { value: 'telegram_channel', labelKey: 'onboarding.creatorTypes.telegram.title', descKey: 'onboarding.creatorTypes.telegram.description' },
 ];
 const LANGUAGES = ['English', 'Arabic', 'Russian', 'French', 'Hindi', 'Urdu', 'Tagalog', 'Mandarin'];
+const LANGUAGES_KZ: { value: string; label: string }[] = [
+  { value: 'Kazakh', label: 'Казахский' },
+  { value: 'Russian', label: 'Русский' },
+  { value: 'English', label: 'Английский' },
+  { value: 'Arabic', label: 'Арабский' },
+  { value: 'French', label: 'Французский' },
+  { value: 'Hindi', label: 'Хинди' },
+  { value: 'Urdu', label: 'Урду' },
+  { value: 'Tagalog', label: 'Тагальский' },
+  { value: 'Mandarin', label: 'Китайский' },
+];
 
 const inputCls = 'w-full rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition-all bg-[#0f1520] border border-[rgba(255,255,255,0.08)]';
 const labelCls = 'block text-xs font-medium mb-1.5 text-slate-400 uppercase tracking-wide';
@@ -695,17 +706,30 @@ export default function CreatorOnboarding() {
             <div>
               <label className={labelCls}><span className="flex items-center gap-1"><Languages size={11} /> {t('onboarding.languages')}</span></label>
               <div className="flex flex-wrap gap-2">
-                {LANGUAGES.map(l => (
-                  <button key={l} type="button" onClick={() => toggleLanguage(l)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                    style={{
-                      background: languages.includes(l) ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)',
-                      color: languages.includes(l) ? '#60a5fa' : '#475569',
-                      border: `1px solid ${languages.includes(l) ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                    }}>
-                    {l}
-                  </button>
-                ))}
+                {region === 'KZ'
+                  ? LANGUAGES_KZ.map(({ value, label }) => (
+                    <button key={value} type="button" onClick={() => toggleLanguage(value)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        background: languages.includes(value) ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)',
+                        color: languages.includes(value) ? '#60a5fa' : '#475569',
+                        border: `1px solid ${languages.includes(value) ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                      }}>
+                      {label}
+                    </button>
+                  ))
+                  : LANGUAGES.map(l => (
+                    <button key={l} type="button" onClick={() => toggleLanguage(l)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        background: languages.includes(l) ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)',
+                        color: languages.includes(l) ? '#60a5fa' : '#475569',
+                        border: `1px solid ${languages.includes(l) ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                      }}>
+                      {l}
+                    </button>
+                  ))
+                }
               </div>
             </div>
 
