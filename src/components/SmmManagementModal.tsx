@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Smartphone, Clock, PenLine, Hash, MessageSquare, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsApp, WA_MESSAGES } from '../lib/whatsapp';
@@ -17,7 +18,7 @@ export default function SmmManagementModal({ onClose }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const SERVICES = [

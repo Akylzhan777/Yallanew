@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Sparkles, Languages, User, Scissors, Mic, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import AiTranslationModal from './AiTranslationModal';
 import AiAvatarModal from './AiAvatarModal';
 import AiAudioModal from './AiAudioModal';
@@ -14,11 +15,11 @@ type SubModal = 'translation' | 'avatar' | 'audio' | null;
 export default function AiHubModal({ onClose }: Props) {
   const { i18n } = useTranslation();
   const [currentLang, setCurrentLang] = useState<string>(
-    i18n.language || localStorage.getItem('yalla_lang') || 'en'
+    i18n.language || safeGetItem('yalla_lang') || 'en'
   );
 
   useEffect(() => {
-    setCurrentLang(i18n.language || localStorage.getItem('yalla_lang') || 'en');
+    setCurrentLang(i18n.language || safeGetItem('yalla_lang') || 'en');
     const handler = (lng: string) => setCurrentLang(lng);
     i18n.on('languageChanged', handler);
     return () => { i18n.off('languageChanged', handler); };
@@ -26,7 +27,7 @@ export default function AiHubModal({ onClose }: Props) {
 
   const isEn =
     currentLang?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const [subModal, setSubModal] = useState<SubModal>(null);

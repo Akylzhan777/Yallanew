@@ -1,5 +1,6 @@
 import { X, ChevronLeft, Mic, Zap, Radio, UserCheck, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 
 interface Props {
   onClose: () => void;
@@ -13,7 +14,7 @@ export default function AiAudioModal({ onClose, onBack }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const WHAT_WE_DO = [

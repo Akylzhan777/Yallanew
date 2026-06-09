@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { CreatorAuthProvider, useCreatorAuth } from './context/CreatorAuthContext';
 import { RegionProvider } from './context/RegionContext';
+import { safeGetItem, safeRemoveItem } from './utils/safeStorage';
 import RegionSelectorModal from './components/RegionSelectorModal';
 import GlobalHeader from './components/GlobalHeader';
 import PaymentModal from './components/PaymentModal';
@@ -137,11 +138,11 @@ const isPublicCreatorRoute =
 const creatorUsernameFromPath = isPublicCreatorRoute ? cleanedSegment : null;
 
 if (isAdminRoute) {
-  localStorage.removeItem('yalla_profile_cache');
+  safeRemoveItem('yalla_profile_cache');
 }
 
 function hasChosenLanguage(): boolean {
-  return !!localStorage.getItem('yalla_lang');
+  return !!safeGetItem('yalla_lang');
 }
 
 function BookingPage() {
@@ -421,11 +422,11 @@ export default function App() {
   if (isManagerPortalRoute) return <ManagerPortal />;
   if (isAdminMarketplaceRoute) { window.location.replace('/admin'); return null; }
   if (isBlogListRoute) {
-    const lang = localStorage.getItem('yalla_lang') || localStorage.getItem('selectedRegion') === 'KZ' ? 'ru' : 'en';
+    const lang = safeGetItem('yalla_lang') || safeGetItem('selectedRegion') === 'KZ' ? 'ru' : 'en';
     return <BlogList isRu={lang === 'ru'} />;
   }
   if (isBlogPostRoute && blogPostSlug) {
-    const lang = localStorage.getItem('yalla_lang') || localStorage.getItem('selectedRegion') === 'KZ' ? 'ru' : 'en';
+    const lang = safeGetItem('yalla_lang') || safeGetItem('selectedRegion') === 'KZ' ? 'ru' : 'en';
     return <BlogPostPage slug={blogPostSlug} isRu={lang === 'ru'} />;
   }
   if (isGeoLandingRoute && geoNiche && geoCity) return <GeoLandingPage niche={geoNiche} city={geoCity} />;

@@ -302,6 +302,6 @@ export function applyHomeSeo(lang: string | null | undefined, isKZ = false) {
 
 export function resetDefaultSeo() {
   const isKZ = window.location.pathname.startsWith('/kz');
-  const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('yalla_lang')) || 'en';
+  const saved = (typeof window !== 'undefined' && (() => { try { return window.localStorage.getItem('yalla_lang'); } catch { return null; } })()) || 'en';
   applyHomeSeo(saved, isKZ);
 }

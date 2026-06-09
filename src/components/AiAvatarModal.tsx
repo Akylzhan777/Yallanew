@@ -1,6 +1,7 @@
 import { X, CheckCircle, Loader, ChevronLeft, Sparkles, Video, Brain, FileText, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +20,7 @@ export default function AiAvatarModal({ onClose, onBack }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const WA_TEXT = encodeURIComponent(

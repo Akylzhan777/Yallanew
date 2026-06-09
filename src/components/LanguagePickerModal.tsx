@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem, safeSetItem } from '../utils/safeStorage';
 
 const STORAGE_KEY = 'yalla_lang';
 
@@ -10,7 +11,7 @@ const LANGUAGES = [
 ];
 
 export function hasChosenLanguage(): boolean {
-  return !!localStorage.getItem(STORAGE_KEY);
+  return !!safeGetItem(STORAGE_KEY);
 }
 
 interface Props {
@@ -34,7 +35,7 @@ export default function LanguagePickerModal({ onClose, redirectTo, title, subtit
     if (selected) return;
     setSelected(code);
     i18n.changeLanguage(code);
-    localStorage.setItem(STORAGE_KEY, code);
+    safeSetItem(STORAGE_KEY, code);
     const isRtl = code === 'ar';
     document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', code);

@@ -3,7 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const safeStorage = {
+  getItem: (key: string): string | null => {
+    try { return window.localStorage.getItem(key); } catch { return null; }
+  },
+  setItem: (key: string, value: string): void => {
+    try { window.localStorage.setItem(key, value); } catch { /* blocked */ }
+  },
+  removeItem: (key: string): void => {
+    try { window.localStorage.removeItem(key); } catch { /* blocked */ }
+  },
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { storage: safeStorage },
+});
 
 export type Profile = {
   id: string;

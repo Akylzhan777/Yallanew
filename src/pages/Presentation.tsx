@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Camera, Film, CalendarCheck, Clock, Users, Zap, ArrowRight, ArrowLeft, Sparkles, TrendingUp, Target, Monitor, Rocket, Crosshair, CreditCard, ShieldCheck, Globe, Check, X, PenTool } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { translations, type PresentationLang } from '../lib/presentationI18n';
+import { safeGetItem } from '../utils/safeStorage';
 
 type PresentationContentRow = {
   section_key: string;
@@ -1363,7 +1364,7 @@ function PaymentSlideContent() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 mb-14">
         {(() => {
-          const isKzRegion = localStorage.getItem('selectedRegion') === 'KZ';
+          const isKzRegion = safeGetItem('selectedRegion') === 'KZ';
           const methods = isKzRegion ? [
             { name: 'Stripe', icon: <CreditCard size={18} /> },
             { name: 'Kaspi Red', icon: <span className="text-sm font-black tracking-tight">K</span> },

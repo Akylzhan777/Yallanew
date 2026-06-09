@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, X, Globe, CheckCircle, Loader, ChevronLeft, Mic, Smile, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +20,7 @@ export default function AiTranslationModal({ onClose, onBack }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const displayName = profile?.name

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, X } from 'lucide-react';
+import { safeSetItem } from '../utils/safeStorage';
 
 const LANGS = [
   { code: 'en', native: 'English',  label: 'English',  flag: '🇬🇧', dir: 'ltr' as const },
@@ -26,7 +27,7 @@ export default function JoinLanguageSelector({ onClose }: Props) {
     if (chosen) return;
     setChosen(code);
     await i18n.changeLanguage(code);
-    localStorage.setItem('yalla_lang', code);
+    safeSetItem('yalla_lang', code);
     document.documentElement.setAttribute('dir', code === 'ar' ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', code);
     setTimeout(() => {

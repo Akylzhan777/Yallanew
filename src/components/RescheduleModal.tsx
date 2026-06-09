@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase, BookingEvent } from '../lib/supabase';
+import { safeGetItem } from '../utils/safeStorage';
 import {
   localIsoDate,
   minutesToTime,
@@ -29,7 +30,7 @@ export default function RescheduleModal({ booking, onClose, onSuccess }: Props) 
   const { t, i18n } = useTranslation();
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
   const [allBookings, setAllBookings] = useState<BookingEvent[]>([]);
   const [loading, setLoading] = useState(true);

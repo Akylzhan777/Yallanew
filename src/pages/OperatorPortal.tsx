@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/safeStorage';
 
 const OPERATOR_PASSWORD = import.meta.env.VITE_OPERATOR_PASSWORD || 'yallaoperator';
 const PASS_KEY = 'operator_portal_auth';
@@ -153,7 +154,7 @@ function buildOptions(clients: CrmClient[], todayBookings: TodayBooking[]): Clie
 }
 
 export default function OperatorPortal() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem(PASS_KEY) === 'true');
+  const [authed, setAuthed] = useState(() => safeGetItem(PASS_KEY) === 'true');
   const [passInput, setPassInput] = useState('');
   const [passError, setPassError] = useState(false);
   const [toast, setToast] = useState('');
@@ -208,7 +209,7 @@ export default function OperatorPortal() {
 
   const handleLogin = () => {
     if (passInput === OPERATOR_PASSWORD) {
-      localStorage.setItem(PASS_KEY, 'true');
+      safeSetItem(PASS_KEY, 'true');
       setAuthed(true);
       setPassError(false);
     } else {
@@ -275,7 +276,7 @@ export default function OperatorPortal() {
 
   const applyLastLinks = () => {
     try {
-      const saved = JSON.parse(localStorage.getItem(LAST_LINKS_KEY) || 'null');
+      const saved = JSON.parse(safeGetItem(LAST_LINKS_KEY) || 'null');
       if (saved?.raw_video_link || saved?.cover_photo_link) {
         setFormData(f => ({
           ...f,
@@ -410,7 +411,7 @@ export default function OperatorPortal() {
         });
       }
 
-      localStorage.setItem(LAST_LINKS_KEY, JSON.stringify({
+      safeSetItem(LAST_LINKS_KEY, JSON.stringify({
         raw_video_link: formData.raw_video_link.trim(),
         cover_photo_link: formData.cover_photo_link.trim(),
       }));
@@ -952,7 +953,7 @@ export default function OperatorPortal() {
           </div>
           <span className="op-header-title">Operator Portal</span>
         </div>
-        <button className="op-logout-btn" onClick={() => { localStorage.removeItem(PASS_KEY); setAuthed(false); }}>
+        <button className="op-logout-btn" onClick={() => { safeRemoveItem(PASS_KEY); setAuthed(false); }}>
           Logout
         </button>
       </header>

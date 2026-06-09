@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Mail, Lock, Eye, EyeOff, Building2, ArrowRight, ChevronLeft, ShoppingBag, BarChart3, Shield } from 'lucide-react';
 import { useClientAuth } from '../context/ClientAuthContext';
 import { supabase } from '../lib/supabase';
+import { safeGetItem, safeRemoveItem } from '../utils/safeStorage';
 
 interface Props {
   onBack?: () => void;
@@ -49,11 +50,11 @@ export default function ClientAuth({ onBack }: Props) {
           }
         }
       }
-      const intent = localStorage.getItem('brand_checkout_intent');
+      const intent = safeGetItem('brand_checkout_intent');
       if (intent) {
         try {
           const { username } = JSON.parse(intent);
-          localStorage.removeItem('brand_checkout_intent');
+          safeRemoveItem('brand_checkout_intent');
           window.location.replace(`/${username}`);
         } catch { window.location.replace('/brand/dashboard'); }
       } else {
@@ -68,11 +69,11 @@ export default function ClientAuth({ onBack }: Props) {
         setSuccess(t('clientAuth.successCreated'));
         setMode('login');
       } else {
-        const intent = localStorage.getItem('brand_checkout_intent');
+        const intent = safeGetItem('brand_checkout_intent');
         if (intent) {
           try {
             const { username } = JSON.parse(intent);
-            localStorage.removeItem('brand_checkout_intent');
+            safeRemoveItem('brand_checkout_intent');
             window.location.replace(`/${username}`);
           } catch { window.location.replace('/brand/dashboard'); }
         } else {

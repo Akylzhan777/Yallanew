@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Send, Bot, Palette, BarChart2, Navigation, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsApp, WA_MESSAGES } from '../lib/whatsapp';
@@ -74,7 +75,7 @@ const SERVICES_EN = [
 export default function TelegramServiceModal({ onClose }: Props) {
   const { profile } = useAuth();
   const { i18n } = useTranslation();
-  const lang = i18n.language || localStorage.getItem('yalla_lang') || 'en';
+  const lang = i18n.language || safeGetItem('yalla_lang') || 'en';
   const isEn = lang.startsWith('en');
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState(false);

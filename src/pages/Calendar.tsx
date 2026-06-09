@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase, BookingEvent } from '../lib/supabase';
 import { Operator } from '../components/OperatorSelector';
+import { safeGetItem, safeSetItem } from '../utils/safeStorage';
 import {
   WORK_START, WORK_END, TIME_STEP,
   localIsoDate, timeToMinutes, minutesToTime,
@@ -82,8 +83,8 @@ export default function Calendar({ operator, onBack }: Props) {
 
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [clientName, setClientName] = useState(() => localStorage.getItem('yalla_client_name') || '');
-  const [whatsappRaw, setWhatsappRaw] = useState(() => localStorage.getItem('yalla_client_phone') || '');
+  const [clientName, setClientName] = useState(() => safeGetItem('yalla_client_name') || '');
+  const [whatsappRaw, setWhatsappRaw] = useState(() => safeGetItem('yalla_client_phone') || '');
   const [location, setLocation] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [needsScript, setNeedsScript] = useState<boolean | null>(null);
@@ -186,8 +187,8 @@ export default function Calendar({ operator, onBack }: Props) {
     if (!taskDescription.trim()) { showToast(t('calendar.taskMissing')); return; }
     if (needsScript === null) { showToast('Please select whether you need a script'); return; }
 
-    localStorage.setItem('yalla_client_name', clientName.trim());
-    localStorage.setItem('yalla_client_phone', whatsappRaw);
+    safeSetItem('yalla_client_name', clientName.trim());
+    safeSetItem('yalla_client_phone', whatsappRaw);
     setSubmitting(true);
     const { data: insertedBooking, error } = await supabase.from('booking_events').insert({
       date: selectedDate,

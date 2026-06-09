@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { checkAndApplyDeadlinePenalties, getOverdueHours, calculateProgressivePenalty } from '../lib/deadlineUtils';
 import DeadlineTimer from '../components/DeadlineTimer';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/safeStorage';
 
 const AUTH_KEY = 'editor_portal_username';
 
@@ -216,7 +217,7 @@ function BannerCarousel({ setActiveTab }: { setActiveTab: (tab: 'video' | 'cover
 
 export default function EditorPortal() {
   const [currentEditorName, setCurrentEditorName] = useState<string | null>(() => {
-    return localStorage.getItem(AUTH_KEY);
+    return safeGetItem(AUTH_KEY);
   });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -402,8 +403,8 @@ export default function EditorPortal() {
         return;
       }
 
-      localStorage.setItem(AUTH_KEY, u);
-      localStorage.setItem('auth_user', u);
+      safeSetItem(AUTH_KEY, u);
+      safeSetItem('auth_user', u);
       setCurrentEditorName(u);
       setUsername('');
       setPassword('');
@@ -742,8 +743,8 @@ export default function EditorPortal() {
         <button
           className="editor-logout-btn"
           onClick={() => {
-            localStorage.removeItem(AUTH_KEY);
-            localStorage.removeItem('auth_user');
+            safeRemoveItem(AUTH_KEY);
+            safeRemoveItem('auth_user');
             setCurrentEditorName(null);
           }}
         >

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Star, Users, TrendingUp, Play, Instagram, Youtube, MapPin, ChevronRight, Check, Clock, Shield, Lock, Zap, CreditCard, X, Smartphone, Info, Share2, ExternalLink, ArrowLeft } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { safeSetItem } from '../utils/safeStorage';
 
 // Anonymous client for public reads — never carries a user session,
 // so creator_profiles queries are never blocked by auth token refresh or RLS role evaluation.
@@ -616,7 +617,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
       return;
     }
     if (clientSession === false) {
-      localStorage.setItem('brand_checkout_intent', JSON.stringify({ username, packageId: pkg.id }));
+      safeSetItem('brand_checkout_intent', JSON.stringify({ username, packageId: pkg.id }));
       window.location.href = '/brand/signup';
       return;
     }
@@ -1168,7 +1169,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
             </p>
             <button
               onClick={() => {
-                localStorage.setItem('brand_checkout_intent', JSON.stringify({ username }));
+                safeSetItem('brand_checkout_intent', JSON.stringify({ username }));
                 window.location.href = '/brand/signup';
               }}
               className="w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 active:scale-95"

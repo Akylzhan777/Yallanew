@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/safeStorage';
 
 const STORAGE_KEY = 'yalla_manager_session';
 const CREDENTIALS = { login: 'manageryalla', password: 'YallaEffect' };
@@ -17,11 +18,11 @@ const ManagerAuthContext = createContext<ManagerAuthContextValue>({
 
 export function ManagerAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean>(() => {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    return safeGetItem(STORAGE_KEY) === 'true';
   });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, isAuthed ? 'true' : 'false');
+    safeSetItem(STORAGE_KEY, isAuthed ? 'true' : 'false');
   }, [isAuthed]);
 
   const signIn = (login: string, password: string): boolean => {
@@ -34,7 +35,7 @@ export function ManagerAuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = () => {
     setIsAuthed(false);
-    localStorage.removeItem(STORAGE_KEY);
+    safeRemoveItem(STORAGE_KEY);
   };
 
   return (

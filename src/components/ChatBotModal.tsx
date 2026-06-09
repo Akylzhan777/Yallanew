@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Bot, Zap, ShoppingCart, ChevronRight, Check } from 'lucide-react';
+import { safeGetItem } from '../utils/safeStorage';
 import { openWhatsApp } from '../lib/whatsapp';
 
 interface ChatBotModalProps {
@@ -13,7 +14,7 @@ export default function ChatBotModal({ onClose }: ChatBotModalProps) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const PACKAGES = [

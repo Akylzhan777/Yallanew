@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Clapperboard, CheckCircle, Crown, ChevronLeft, ChevronRight, TrendingUp, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsApp, WA_MESSAGES } from '../lib/whatsapp';
@@ -51,7 +52,7 @@ export default function ReelsProductionModal({ onClose }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
   const [noEdit, setNoEdit] = useState(false);
   const [sending, setSending] = useState(false);

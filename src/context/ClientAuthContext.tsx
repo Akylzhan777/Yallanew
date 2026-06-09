@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { safeGetItem } from '../utils/safeStorage';
 
 export interface ClientProfile {
   id: string;
@@ -133,7 +134,7 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 
     // Manually create profile in case trigger didn't fire (e.g. email not yet confirmed)
     if (data.user) {
-      const region = localStorage.getItem('selectedRegion') || 'UAE';
+      const region = safeGetItem('selectedRegion') || 'UAE';
       await supabase.from('client_profiles').insert({
         user_id: data.user.id,
         email,

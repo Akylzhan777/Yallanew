@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Instagram, Youtube, Music2, Ghost, Send, CheckCircle } from 'lucide-react';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { WA_MESSAGES } from '../lib/whatsapp';
@@ -19,7 +20,7 @@ export default function SocialNetworksModal({ platform, onClose }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
 
   const PLATFORM_CONFIG: Record<SocialPlatform, {

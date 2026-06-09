@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, Profile } from '../lib/supabase';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/safeStorage';
 
 const PROFILE_CACHE_KEY = 'yalla_profile_cache';
 
 function loadCachedProfile(): Profile | null {
   try {
-    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    const raw = safeGetItem(PROFILE_CACHE_KEY);
     return raw ? (JSON.parse(raw) as Profile) : null;
   } catch {
     return null;
@@ -14,15 +15,11 @@ function loadCachedProfile(): Profile | null {
 }
 
 function saveCachedProfile(profile: Profile) {
-  try {
-    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
-  } catch {}
+  safeSetItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
 }
 
 function clearCachedProfile() {
-  try {
-    localStorage.removeItem(PROFILE_CACHE_KEY);
-  } catch {}
+  safeRemoveItem(PROFILE_CACHE_KEY);
 }
 
 function makeFallbackProfile(userId: string): Profile {

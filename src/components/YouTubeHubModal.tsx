@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Youtube, ChevronLeft, ChevronRight, CheckCircle, Sparkles, Video, TrendingUp, Clock, Scissors } from 'lucide-react';
+import { safeGetItem } from '../utils/safeStorage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,7 +26,7 @@ export default function YouTubeHubModal({ onClose }: Props) {
 
   const isEn =
     i18n.language?.startsWith('en') ||
-    localStorage.getItem('yalla_lang') === 'en' ||
+    safeGetItem('yalla_lang') === 'en' ||
     window.location.search.includes('lang=en');
   const [path, setPath] = useState<Path>('select');
   const [shootMode, setShootMode] = useState<ShootMode>('raw');

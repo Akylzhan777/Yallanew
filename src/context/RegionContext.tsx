@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import i18n from '../lib/i18n';
+import { safeGetItem, safeSetItem } from '../utils/safeStorage';
 
 export type Region = 'UAE' | 'KZ';
 
@@ -28,7 +29,7 @@ interface RegionContextValue {
 const RegionContext = createContext<RegionContextValue | null>(null);
 
 function getStoredRegion(): Region | null {
-  const stored = localStorage.getItem('selectedRegion');
+  const stored = safeGetItem('selectedRegion');
   if (stored === 'UAE' || stored === 'KZ') return stored;
   return null;
 }
@@ -40,7 +41,7 @@ export function RegionProvider({ children }: { children: ReactNode }) {
 
   const setRegion = (r: Region) => {
     setRegionState(r);
-    localStorage.setItem('selectedRegion', r);
+    safeSetItem('selectedRegion', r);
     setShowSelector(false);
     const lang = REGION_CONFIG[r].defaultLanguage;
     i18n.changeLanguage(lang);
