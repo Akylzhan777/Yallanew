@@ -274,6 +274,11 @@ export default function CreatorOnboarding() {
         } else if (creatorType === 'model') {
           payload = { ...payload, instagram_url: instagramUrl.trim() || null, youtube_url: null, tiktok_url: null, followers_count: 0, avg_views: 0, engagement_rate: 0 };
         } else if (creatorType !== 'editor') {
+          if (region === 'KZ') {
+            if (!instagramUrl.trim()) { setError('Instagram URL обязателен. Заполните ссылку на профиль.'); setSaving(false); return; }
+            if (!instagramUrl.trim().startsWith('https://')) { setError('Instagram URL должен начинаться с https://'); setSaving(false); return; }
+            if (!followers.trim() || parseInt(followers) <= 0) { setError('Укажите количество подписчиков.'); setSaving(false); return; }
+          }
           const links = [instagramUrl.trim(), youtubeUrl.trim(), tiktokUrl.trim()].filter(Boolean);
           if (links.length) {
             const invalidLink = links.find(l => !l.startsWith('https://'));
@@ -905,14 +910,20 @@ export default function CreatorOnboarding() {
             <div className="space-y-3">
               {/* Instagram — always visible */}
               <div>
-                <label className={labelCls}><span className="flex items-center gap-1.5" style={{ color: '#e1306c' }}><Instagram size={16} /> {creatorType === 'videographer' || creatorType === 'photographer' || creatorType === 'editor' ? 'Instagram / Behance URL' : 'Instagram URL'}</span></label>
+                <label className={labelCls}>
+                  <span className="flex items-center gap-1.5" style={{ color: '#e1306c' }}>
+                    <Instagram size={16} />
+                    {creatorType === 'videographer' || creatorType === 'photographer' || creatorType === 'editor' ? 'Instagram / Behance URL' : 'Instagram URL'}
+                    {region === 'KZ' && <span style={{ color: '#ef4444' }}>*</span>}
+                  </span>
+                </label>
                 <div className="relative">
                   <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#374151' }} />
                   <input value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)}
                     placeholder={creatorType === 'videographer' || creatorType === 'photographer' || creatorType === 'editor' ? 'https://instagram.com/handle or behance.net/...' : 'https://instagram.com/yourhandle'}
-                    className={inputCls} style={{ paddingLeft: 36 }}
+                    className={inputCls} style={{ paddingLeft: 36, borderColor: region === 'KZ' && !instagramUrl.trim() ? 'rgba(239,68,68,0.35)' : undefined }}
                     onFocus={e => e.currentTarget.style.borderColor = '#e1306c55'}
-                    onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                    onBlur={e => e.currentTarget.style.borderColor = region === 'KZ' && !instagramUrl.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}
                   />
                 </div>
               </div>
@@ -980,15 +991,19 @@ export default function CreatorOnboarding() {
                 <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#475569' }}>{t('onboarding.audienceStats')}</div>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: t('onboarding.totalFollowers'), val: followers, set: setFollowers, placeholder: '150000' },
-                    { label: t('onboarding.avgViews'), val: avgViews, set: setAvgViews, placeholder: '50000' },
-                    { label: t('onboarding.engagementPct'), val: engRate, set: setEngRate, placeholder: '4.5' },
+                    { label: t('onboarding.totalFollowers'), val: followers, set: setFollowers, placeholder: '150000', required: region === 'KZ' },
+                    { label: t('onboarding.avgViews'), val: avgViews, set: setAvgViews, placeholder: '50000', required: false },
+                    { label: t('onboarding.engagementPct'), val: engRate, set: setEngRate, placeholder: '4.5', required: false },
                   ].map(s => (
                     <div key={s.label}>
-                      <label className={labelCls}>{s.label}</label>
+                      <label className={labelCls}>
+                        {s.label}
+                        {s.required && <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>}
+                      </label>
                       <input type="number" value={s.val} onChange={e => s.set(e.target.value)} placeholder={s.placeholder} className={inputCls}
+                        style={s.required && (!s.val || parseInt(s.val) <= 0) ? { borderColor: 'rgba(239,68,68,0.35)' } : undefined}
                         onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,196,140,0.4)'}
-                        onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                        onBlur={e => e.currentTarget.style.borderColor = s.required && (!s.val || parseInt(s.val) <= 0) ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}
                       />
                     </div>
                   ))}
