@@ -309,7 +309,7 @@ export default function CreatorOnboarding() {
           payload = { ...payload, packages: [modelPkg], model_hourly_rate: hourly, model_min_hours: parseInt(modelMinHours) || 2, model_shoot_types: modelShootTypes.trim(), model_restrictions: modelRestrictions.trim() };
         } else {
           const validPkgs = packages.filter(p => p.name.trim() && p.price > 0);
-          if (!validPkgs.length) { setError('Add at least one package with a name and price.'); setSaving(false); return; }
+          if (!validPkgs.length) { setError(region === 'KZ' ? 'Добавьте хотя бы один пакет с названием и ценой.' : 'Add at least one package with a name and price.'); setSaving(false); return; }
           const pkgsWithClientPrice = validPkgs.map(p => ({
             ...p,
             clientPrice: Math.round(p.price * (1 + markupPct / 100)),
