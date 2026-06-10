@@ -134,6 +134,7 @@ export default function ProductionDashboard() {
   const [portfolioUploading, setPortfolioUploading] = useState(false);
   const [portfolioUploadPct, setPortfolioUploadPct] = useState(0);
   const [editingPortfolioIdx, setEditingPortfolioIdx] = useState<number | null>(null);
+  const [activePortfolioVideo, setActivePortfolioVideo] = useState<string | null>(null);
 
   // KZ: Packages
   const [editPackages, setEditPackages] = useState<KzPkg[]>([]);
@@ -1176,90 +1177,30 @@ export default function ProductionDashboard() {
               </div>
             )}
 
-            <div className="space-y-3 mb-4">
-              {portfolioItems.map((item, i) => (
-                <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: editingPortfolioIdx === i ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.05)' }}>
-                  {/* Bunny iframe preview */}
-                  {item.url.includes('iframe.mediadelivery.net') && (
-                    <div className="w-full rounded-t-2xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                      <iframe src={item.url} className="w-full h-full" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen style={{ border: 'none' }} />
-                    </div>
-                  )}
-                  {/* Image preview */}
-                  {item.type === 'image' && (
-                    <div className="w-full rounded-t-2xl overflow-hidden" style={{ maxHeight: 180 }}>
-                      <img src={item.url} alt={item.title || ''} className="w-full object-cover" style={{ maxHeight: 180 }} />
-                    </div>
-                  )}
-                  {/* Preview row */}
-                  <div className="flex items-center gap-3 p-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.15)' }}>
-                      {item.type === 'image'
-                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{item.title || `Файл ${i + 1}`}</p>
-                      {item.clientName && <p className="text-[10px] text-gray-500 truncate">{item.clientName}</p>}
-                      {!item.url.includes('iframe.mediadelivery.net') && (
-                        <a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] text-amber-400/70 hover:text-amber-400">Открыть ↗</a>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setEditingPortfolioIdx(editingPortfolioIdx === i ? null : i)}
-                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold mr-1"
-                      style={{ background: editingPortfolioIdx === i ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.04)', color: editingPortfolioIdx === i ? '#fbbf24' : '#94a3b8', border: editingPortfolioIdx === i ? '1px solid rgba(251,191,36,0.25)' : '1px solid rgba(255,255,255,0.08)' }}
-                    >
-                      {editingPortfolioIdx === i ? 'Готово' : 'Ред.'}
-                    </button>
-                    <button onClick={() => deletePortfolioVideo(i)} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>✕</button>
-                  </div>
-                  {/* Inline metadata editor */}
-                  {editingPortfolioIdx === i && (
-                    <div className="px-4 pb-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div className="pt-3">
-                        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-600 mb-1">Название проекта</label>
-                        <input
-                          value={item.title ?? ''}
-                          onChange={e => setPortfolioItems(prev => prev.map((it, pi) => pi === i ? { ...it, title: e.target.value } : it))}
-                          onBlur={() => updatePortfolioItemMeta(i, { title: item.title })}
-                          placeholder="Рекламный ролик Kaspi.kz"
-                          className="w-full px-3 py-2 rounded-xl text-sm bg-[#0a0f1a] border border-white/10 text-white outline-none focus:border-amber-500/40 transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-600 mb-1">Клиент / Для кого снято</label>
-                        <input
-                          value={item.clientName ?? ''}
-                          onChange={e => setPortfolioItems(prev => prev.map((it, pi) => pi === i ? { ...it, clientName: e.target.value } : it))}
-                          onBlur={() => updatePortfolioItemMeta(i, { clientName: item.clientName })}
-                          placeholder="Kaspi, Yandex, локальный ресторан..."
-                          className="w-full px-3 py-2 rounded-xl text-sm bg-[#0a0f1a] border border-white/10 text-white outline-none focus:border-amber-500/40 transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-600 mb-1">Описание / Оборудование</label>
-                        <textarea
-                          value={item.description ?? ''}
-                          onChange={e => setPortfolioItems(prev => prev.map((it, pi) => pi === i ? { ...it, description: e.target.value } : it))}
-                          onBlur={() => updatePortfolioItemMeta(i, { description: item.description })}
-                          placeholder="Sony A7 IV, дроуслайдер, стедикам..."
-                          rows={2}
-                          className="w-full px-3 py-2 rounded-xl text-sm bg-[#0a0f1a] border border-white/10 text-white outline-none focus:border-amber-500/40 transition-colors resize-none"
-                        />
-                      </div>
-                      <button
-                        onClick={() => { updatePortfolioItemMeta(i, { title: item.title, clientName: item.clientName, description: item.description }); setEditingPortfolioIdx(null); }}
-                        className="w-full py-2 rounded-xl text-xs font-bold"
-                        style={{ background: 'rgba(0,196,140,0.10)', color: '#00C48C', border: '1px solid rgba(0,196,140,0.25)' }}
-                      >
-                        Сохранить
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+              {portfolioItems.map((item, i) => {
+                const isBunny = item.url.includes('iframe.mediadelivery.net');
+                const thumb = isBunny && item.videoId ? `https://vz-f9c8ad95-914.b-cdn.net/${item.videoId}/thumbnail.jpg` : null;
+                return (
+                  <div key={i} className="relative rounded-xl overflow-hidden group aspect-square" style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {isBunny ? (
+                      <button onClick={() => setActivePortfolioVideo(item.url)} className="w-full h-full">
+                        {thumb ? <img src={thumb} alt={item.title || ''} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ background: '#0a0f1a' }} />}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/40 transition-colors">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                          </div>
+                        </div>
                       </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <img src={item.url} alt={item.title || ''} className="w-full h-full object-cover" />
+                    )}
+                    <button onClick={() => deletePortfolioVideo(i)} className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                      <span className="text-red-400 text-xs">✕</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             {portfolioItems.length < 100 && !portfolioUploading && (
@@ -1271,6 +1212,15 @@ export default function ProductionDashboard() {
               </label>
             )}
             {portfolioItems.length >= 100 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 100 файлов в портфолио</p>}
+
+            {activePortfolioVideo && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.9)' }} onClick={() => setActivePortfolioVideo(null)}>
+                <button onClick={() => setActivePortfolioVideo(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(255,255,255,0.12)' }}>✕</button>
+                <div className="bg-black rounded-xl overflow-hidden" style={{ width: '100%', maxWidth: 700, aspectRatio: '16/9' }} onClick={e => e.stopPropagation()}>
+                  <iframe src={activePortfolioVideo + '?autoplay=true'} className="w-full h-full" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen style={{ border: 'none' }} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
