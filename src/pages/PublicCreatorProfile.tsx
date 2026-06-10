@@ -725,7 +725,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   const fmtCreatorPrice = (amount: number) => formatPriceForRegion(amount, creatorRegion);
 
   // Build rich portfolio items — prefer portfolio_items, fall back to portfolio_urls
-  const portfolioItems: Array<{ url: string; title?: string; clientName?: string; description?: string }> = (() => {
+  const portfolioItems: Array<{ url: string; type?: 'image' | 'video'; title?: string; clientName?: string; description?: string }> = (() => {
     if (Array.isArray(profile.portfolio_items) && profile.portfolio_items.length > 0) {
       return profile.portfolio_items;
     }
@@ -1058,13 +1058,15 @@ function PublicCreatorProfile({ username }: { username: string }) {
                 {portfolioItems.map((item, i) => (
                   <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     {item.type === 'video' && item.url.includes('iframe.mediadelivery.net') ? (
-                      <iframe
-                        src={item.url}
-                        loading="lazy"
-                        style={{ border: 0, width: '100%', aspectRatio: '16/9', display: 'block' }}
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
-                      />
+                      <div className="bg-black mx-auto w-full" style={{ maxWidth: 360, aspectRatio: '9 / 16' }}>
+                        <iframe
+                          src={item.url}
+                          loading="lazy"
+                          style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+                          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                          allowFullScreen
+                        />
+                      </div>
                     ) : (
                       <video
                         src={item.url}
@@ -1097,17 +1099,26 @@ function PublicCreatorProfile({ username }: { username: string }) {
                 {portfolioItems.map((item, i) => {
                   const isBunny = item.type === 'video' && item.url.includes('iframe.mediadelivery.net');
                   const isVideo = isBunny || item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
-                  return (
-                    <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                      {isBunny ? (
+                  if (isBunny) {
+                    return (
+                      <div
+                        key={i}
+                        className="col-span-full rounded-xl overflow-hidden bg-black mx-auto w-full"
+                        style={{ maxWidth: 360, aspectRatio: '9 / 16', border: '1px solid rgba(255,255,255,0.06)' }}
+                      >
                         <iframe
                           src={item.url}
                           loading="lazy"
-                          style={{ border: 0, width: '100%', height: '100%' }}
-                          allow="autoplay; fullscreen; picture-in-picture"
+                          style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+                          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                           allowFullScreen
                         />
-                      ) : isVideo ? (
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                      {isVideo ? (
                         <video
                           src={item.url}
                           controls
