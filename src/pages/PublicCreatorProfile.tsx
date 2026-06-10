@@ -780,73 +780,66 @@ function PublicCreatorProfile({ username }: { username: string }) {
           </button>
         </div>
 
-        {/* ─── HEADER: Banner + Avatar + Name ─── */}
-        <div className="mb-6">
-          {/* Gradient banner */}
-          <div className="relative rounded-[30px] h-32 sm:h-40" style={{ background: 'linear-gradient(130deg, #FFC360, #B45309)' }}>
-            {/* Rating capsule */}
-            <div className="absolute top-3 right-3 h-9 px-3 flex items-center gap-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(32px)' }}>
-              <Star size={14} fill="#FFC360" style={{ color: '#FFC360' }} />
-              <span className="text-white text-sm font-semibold">{(profile.rating || 5).toFixed(2)}</span>
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>({profile.review_count || 0})</span>
-            </div>
-            {/* Avatar overlapping bottom of banner */}
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-12">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden" style={{ border: '8px solid #171717' }}>
-                {profile.avatar_url
-                  ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center text-3xl font-black" style={{ background: 'rgba(255,195,96,0.2)', color: '#FFC360' }}>{profile.display_name[0]?.toUpperCase()}</div>}
-              </div>
-            </div>
-          </div>
-
-          {/* Name + handle + type, below avatar */}
-          <div className="flex flex-col items-center text-center mt-16">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-medium text-white">{profile.display_name}</h1>
-              {profile.is_verified && (
-                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#3b82f6' }}>
-                  <Check size={10} color="white" strokeWidth={3} />
-                </div>
-              )}
-            </div>
-            <p className="text-sm mb-3" style={{ color: '#94a3b8' }}>@{profile.username}</p>
-
-            {/* Tags row */}
-            <div className="flex flex-wrap items-center justify-center gap-1.5">
-              <span className="h-9 px-4 flex items-center text-sm font-medium text-white rounded-full" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(32px)' }}>
-                {profile.creator_type === 'ugc' ? 'UGC Creator' : profile.creator_type === 'model' ? 'Model' : profile.creator_type === 'videographer' ? 'Videographer' : profile.creator_type === 'photographer' ? 'Photographer' : profile.creator_type === 'editor' ? 'Video Editor' : profile.creator_type === 'telegram_channel' ? 'Telegram Channel' : 'Blogger'}
-              </span>
-              {profile.location && (
-                <span className="h-9 px-4 flex items-center gap-1 text-sm font-medium text-white rounded-full" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(32px)' }}>
-                  <MapPin size={12} /> {profile.location}
-                </span>
-              )}
-              {profile.category && (
-                <span className="h-9 px-4 flex items-center text-sm font-medium text-white rounded-full capitalize" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(32px)' }}>
-                  {profile.category}
-                </span>
-              )}
-              {Array.isArray(profile.additional_roles) && profile.additional_roles.length > 0 && (() => {
-                const ROLE_LABELS: Record<string, string> = {
-                  videographer: 'Видеограф', operator: 'Оператор', editor: 'Монтажёр',
-                  mobilographer: 'Мобилограф', ugc: 'UGC', blogger: 'Блогер',
-                  photographer: 'Фотограф', model: 'Модель',
-                };
-                return profile.additional_roles!
-                  .filter(r => r !== profile.creator_type)
-                  .map(r => (
-                    <span key={r} className="h-9 px-4 flex items-center text-sm font-medium rounded-full" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(32px)', color: '#c084fc' }}>
-                      {ROLE_LABELS[r] || r}
-                    </span>
-                  ));
-              })()}
-            </div>
-          </div>
-        </div>
-
-        {/* Bio + Social links */}
+        {/* ─── HEADER: Avatar + Name + Rating ─── */}
         <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-24 h-24 rounded-full overflow-hidden mb-4"
+            style={{ border: '3px solid rgba(0,196,140,0.4)', boxShadow: '0 0 40px rgba(0,196,140,0.15)' }}>
+            {profile.avatar_url
+              ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-3xl font-black" style={{ background: 'rgba(0,196,140,0.15)', color: '#00C48C' }}>
+                  {profile.display_name[0]?.toUpperCase()}
+                </div>}
+          </div>
+
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl font-bold text-white">{profile.display_name}</h1>
+            {profile.is_verified && (
+              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#3b82f6' }}>
+                <Check size={10} color="white" strokeWidth={3} />
+              </div>
+            )}
+          </div>
+
+          <p className="text-sm mb-2" style={{ color: '#64748b' }}>@{profile.username}</p>
+
+          {/* Rating stars */}
+          <div className="flex items-center gap-1 mb-3">
+            {[1, 2, 3, 4, 5].map(i => (
+              <Star key={i} size={14} fill={i <= Math.round(profile.rating || 5) ? '#fbbf24' : 'transparent'} style={{ color: i <= Math.round(profile.rating || 5) ? '#fbbf24' : '#374151' }} />
+            ))}
+            <span className="text-xs font-semibold ml-1" style={{ color: '#fbbf24' }}>{(profile.rating || 5).toFixed(1)}</span>
+            <span className="text-xs" style={{ color: '#475569' }}>({profile.review_count || 0})</span>
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mb-3">
+            {profile.location && (
+              <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <MapPin size={10} /> {profile.location}
+              </span>
+            )}
+            <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(99,179,237,0.1)', color: '#63b3ed', border: '1px solid rgba(99,179,237,0.2)' }}>
+              {profile.creator_type === 'ugc' ? 'UGC Creator' : profile.creator_type === 'model' ? 'Model' : profile.creator_type === 'videographer' ? 'Videographer' : profile.creator_type === 'photographer' ? 'Photographer' : profile.creator_type === 'editor' ? 'Video Editor' : profile.creator_type === 'telegram_channel' ? 'Telegram Channel' : 'Blogger'}
+            </span>
+            {Array.isArray(profile.additional_roles) && profile.additional_roles.length > 0 && (() => {
+              const ROLE_LABELS: Record<string, string> = {
+                videographer: 'Видеограф', operator: 'Оператор', editor: 'Монтажёр',
+                mobilographer: 'Мобилограф', ugc: 'UGC', blogger: 'Блогер',
+                photographer: 'Фотограф', model: 'Модель',
+              };
+              return profile.additional_roles!
+                .filter(r => r !== profile.creator_type)
+                .map(r => (
+                  <span key={r} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'rgba(168,85,247,0.10)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                    {ROLE_LABELS[r] || r}
+                  </span>
+                ));
+            })()}
+            <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {profile.category}
+            </span>
+          </div>
+
           {/* Bio */}
           {profile.bio && (() => {
             const cleanBio = profile.bio.split(/keywords:/i)[0].trim();
@@ -1043,50 +1036,58 @@ function PublicCreatorProfile({ username }: { username: string }) {
 
         {/* ─── SERVICES / PACKAGES ─── */}
         {packages.length > 0 && (
-          <div className="mb-6 rounded-[30px] p-5 sm:p-6" style={{ background: '#ffffff' }}>
-            <h2 className="text-lg font-medium mb-4 font-['Sofia_Pro']" style={{ color: '#171717' }}>
+          <div className="mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#94a3b8' }}>
               {t('marketplace.modal.choosePackage')}
             </h2>
-            <div className="space-y-3">
-              {packages.map((pkg, idx) => (
-                <div key={pkg.id}>
-                  <div className="rounded-[24px] p-4 sm:p-5" style={{ background: '#F4F4F4' }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium mb-1" style={{ color: 'rgba(23,23,23,0.6)' }}>{pkg.name}</div>
-                        <div className="text-3xl sm:text-4xl font-medium font-['Sofia_Pro']" style={{ color: '#171717' }}>
-                          {fmtCreatorPrice(getClientPrice(pkg))}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-2 text-sm" style={{ color: 'rgba(0,0,0,0.6)' }}>
-                          <Clock size={14} style={{ color: '#FFC360' }} />
-                          {isModel ? t('packages.hours_display', { hours: pkg.deliveryDays }) : `${pkg.deliveryDays} days`}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleOrderClick(pkg)}
-                        className="flex-shrink-0 h-12 px-6 rounded-full flex items-center justify-center text-base font-medium font-['Sofia_Pro'] transition-transform active:scale-95"
-                        style={{ background: '#FFC360', color: '#422006' }}
-                      >
-                        Order
-                      </button>
+            <div className="space-y-2">
+              {packages.map(pkg => (
+                <div
+                  key={pkg.id}
+                  onClick={() => handleOrderClick(pkg)}
+                  className="rounded-2xl p-4 cursor-pointer transition-all active:scale-[0.98] hover:border-emerald-500/30"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-sm text-white">{pkg.name}</span>
+                      {pkg.description && (
+                        <p
+                          className="text-xs mt-0.5 leading-snug"
+                          style={{
+                            color: '#64748b',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {pkg.description}
+                        </p>
+                      )}
                     </div>
-                    {pkg.description && (
-                      <p className="text-sm mt-3 leading-snug" style={{ color: 'rgba(23,23,23,0.55)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {pkg.description}
-                      </p>
-                    )}
-                    {pkg.includes && pkg.includes.length > 0 && pkg.includes.filter(Boolean).join(' ').trim() !== (pkg.description || '').trim() && (
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                        {pkg.includes.filter(Boolean).map(item => (
-                          <span key={item} className="flex items-center gap-1 text-sm max-w-full" style={{ color: 'rgba(23,23,23,0.6)' }}>
-                            <Check size={12} style={{ color: '#16a34a', flexShrink: 0 }} />
-                            <span className="truncate">{item}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex-shrink-0 text-right">
+                      <span className="font-bold text-white">{fmtCreatorPrice(getClientPrice(pkg))}</span>
+                    </div>
                   </div>
-                  {idx < packages.length - 1 && <div className="h-px my-1" style={{ background: 'transparent' }} />}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs" style={{ color: '#475569' }}>
+                      <Clock size={10} /> {isModel ? t('packages.hours_display', { hours: pkg.deliveryDays }) : `${pkg.deliveryDays} days`}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-medium" style={{ color: '#00C48C' }}>
+                      Order <ExternalLink size={10} />
+                    </div>
+                  </div>
+                  {pkg.includes && pkg.includes.length > 0 && pkg.includes.filter(Boolean).join(' ').trim() !== (pkg.description || '').trim() && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      {pkg.includes.filter(Boolean).map(item => (
+                        <span key={item} className="flex items-center gap-1 text-xs max-w-full" style={{ color: '#64748b' }}>
+                          <Check size={9} style={{ color: '#00C48C', flexShrink: 0 }} />
+                          <span className="truncate">{item}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
