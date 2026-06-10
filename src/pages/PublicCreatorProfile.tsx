@@ -114,8 +114,12 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
   }, []);
 
   const createOrderRecord = async (status: 'on_hold' | 'pending', _extraFields?: Record<string, string>): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
-    const commission = Math.round(clientPrice * 0.20);
-    const net = clientPrice - commission;
+    // Model B: creator sets pkg.price (their take-home). Client pays clientPrice = pkg.price * 1.2.
+    // package_price stores the creator's base price so the DB trigger (calc_creator_payout) pays them 100%.
+    // Platform earns the markup (clientPrice - pkg.price); no deduction from the creator.
+    const creatorBasePrice = pkg.price;
+    const commission = clientPrice - creatorBasePrice;
+    const net = creatorBasePrice;
     const { data: order, error: insertErr } = await supabase.from('marketplace_orders').insert({
       creator_id: profile.id,
       buyer_name: form.name,
@@ -124,7 +128,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
       campaign_brief: form.brief || null,
       package_id: pkg.id,
       package_name: pkg.name,
-      package_price: clientPrice,
+      package_price: creatorBasePrice,
       creator_net_amount: net,
       status,
       payment_method: payMethod,
@@ -149,7 +153,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
       await supabase.rpc('upsert_creator_wallet_on_hold', {
         p_creator_id: profile.id,
         p_currency: 'KZT',
-        p_amount: net,
+        p_amount: creatorBasePrice,
       });
     }
     return { data: order, error: null };
