@@ -558,6 +558,12 @@ function NotFound({ username }: { username: string }) {
   );
 }
 
+const BUNNY_CDN = 'vz-f9c8ad95-914.b-cdn.net';
+function getBunnyThumb(embedUrl: string): string | null {
+  const m = embedUrl.match(/embed\/\d+\/([^/?#]+)/);
+  return m ? `https://${BUNNY_CDN}/${m[1]}/thumbnail.jpg` : null;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    MAIN TAPLINK-STYLE PAGE
    ═══════════════════════════════════════════════════════════════════ */
@@ -624,6 +630,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
     setCheckoutPkg(pkg);
   }
   const [copied, setCopied] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!username) { setProfile(null); return; }
@@ -1052,89 +1059,69 @@ function PublicCreatorProfile({ username }: { username: string }) {
             <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#94a3b8' }}>
               Portfolio
             </h2>
-            {isVideographer ? (
-              /* Videographer: full-width video player cards with metadata */
-              <div className="space-y-4">
-                {portfolioItems.map((item, i) => (
-                  <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    {item.type === 'video' && item.url.includes('iframe.mediadelivery.net') ? (
-                      <div className="bg-black mx-auto w-full" style={{ maxWidth: 360, aspectRatio: '9 / 16' }}>
-                        <iframe
-                          src={item.url}
-                          loading="lazy"
-                          style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
-                          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                          allowFullScreen
-                        />
+            <div className={`grid gap-2 ${isModel ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {portfolioItems.map((item, i) => {
+                const isBunny = item.type === 'video' && item.url.includes('iframe.mediadelivery.net');
+                const isVideo = isBunny || item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
+                if (isBunny) {
+                  const thumb = getBunnyThumb(item.url);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setActiveVideo(item.url)}
+                      className="relative rounded-xl overflow-hidden bg-black group aspect-[9/16]"
+                      style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt={item.title || `Video ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      ) : (
+                        <div className="w-full h-full" style={{ background: '#0a0f1a' }} />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                        <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
                       </div>
+                    </button>
+                  );
+                }
+                return (
+                  <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {isVideo ? (
+                      <video src={item.url} controls controlsList="nodownload" playsInline preload="metadata" className="w-full h-full object-cover" />
                     ) : (
-                      <video
-                        src={item.url}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        className="w-full rounded-t-2xl"
-                        style={{ background: '#0a0f1a', maxHeight: 280, display: 'block' }}
-                      />
-                    )}
-                    {(item.title || item.clientName || item.description) && (
-                      <div className="px-4 py-3 space-y-1">
-                        {item.title && (
-                          <p className="text-sm font-semibold text-white">{item.title}</p>
-                        )}
-                        {item.clientName && (
-                          <p className="text-xs font-medium" style={{ color: '#fbbf24' }}>{item.clientName}</p>
-                        )}
-                        {item.description && (
-                          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>{item.description}</p>
-                        )}
-                      </div>
+                      <img src={item.url} alt={item.title || `Work ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                     )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              /* Models / photographers: image/video grid */
-              <div className={`grid gap-2 ${isModel ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {portfolioItems.map((item, i) => {
-                  const isBunny = item.type === 'video' && item.url.includes('iframe.mediadelivery.net');
-                  const isVideo = isBunny || item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
-                  if (isBunny) {
-                    return (
-                      <div
-                        key={i}
-                        className="col-span-full rounded-xl overflow-hidden bg-black mx-auto w-full"
-                        style={{ maxWidth: 360, aspectRatio: '9 / 16', border: '1px solid rgba(255,255,255,0.06)' }}
-                      >
-                        <iframe
-                          src={item.url}
-                          loading="lazy"
-                          style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
-                          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                          allowFullScreen
-                        />
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                      {isVideo ? (
-                        <video
-                          src={item.url}
-                          controls
-                          controlsList="nodownload"
-                          playsInline
-                          preload="metadata"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img src={item.url} alt={item.title || `Work ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Fullscreen video modal */}
+        {activeVideo && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.9)' }}
+            onClick={() => setActiveVideo(null)}
+          >
+            <button
+              onClick={() => setActiveVideo(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center text-white"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div className="bg-black rounded-xl overflow-hidden" style={{ width: '100%', maxWidth: 400, aspectRatio: '9 / 16' }} onClick={e => e.stopPropagation()}>
+              <iframe
+                src={activeVideo + '?autoplay=true'}
+                loading="lazy"
+                style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+              />
+            </div>
           </div>
         )}
 
