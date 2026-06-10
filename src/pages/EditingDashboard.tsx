@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { LogOut, Briefcase, ListChecks, Wallet, Clock, Check, Play, ExternalLink, MessageSquare, X, DollarSign, LayoutDashboard, TrendingUp, Zap, MessageCircle, ChevronRight, Search, ArrowLeft, Film } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LogOut, Briefcase, ListChecks, Wallet, Clock, Check, Play, ExternalLink, MessageSquare, X, DollarSign, LayoutDashboard, TrendingUp, Zap, MessageCircle, ChevronRight, Search, ArrowLeft, Film, Images, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useCreatorAuth } from '../context/CreatorAuthContext';
 import OrderChat from '../components/OrderChat';
@@ -32,7 +32,13 @@ interface EditingOrder {
   created_at: string;
 }
 
-type Tab = 'overview' | 'available' | 'tasks' | 'messages' | 'wallet' | 'stock';
+type Tab = 'overview' | 'available' | 'tasks' | 'messages' | 'wallet' | 'stock' | 'portfolio';
+
+interface PortfolioItem {
+  url: string;
+  type: 'image' | 'video';
+  title?: string;
+}
 
 interface EditorDealChat {
   id: string;
@@ -76,6 +82,12 @@ export default function EditingDashboard() {
   const [payoutDetails, setPayoutDetails] = useState('');
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [payoutRequests, setPayoutRequests] = useState<{ id: string; amount: number; payment_method: string; status: string; created_at: string }[]>([]);
+
+  // Portfolio state
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -147,6 +159,9 @@ export default function EditingDashboard() {
       .eq('user_id', user!.id)
       .maybeSingle();
     setEditorProfile(data);
+    if (data?.portfolio_items) {
+      setPortfolioItems(data.portfolio_items as PortfolioItem[]);
+    }
     setLoading(false);
   };
 
@@ -183,6 +198,47 @@ export default function EditingDashboard() {
     await supabase.from('editing_orders').update({ status: 'review', preview_link: resultLink, result_link: resultLink }).eq('id', orderId);
     setResultLink('');
     loadJobs();
+  };
+
+  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !editorProfile) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setPortfolioError(null);
+    const VIDEO_MAX = 50 * 1024 * 1024;
+    const oversized = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX);
+    if (oversized) {
+      setPortfolioError('Video file must not exceed 50 MB');
+      e.target.value = '';
+      return;
+    }
+    setPortfolioUploading(true);
+    const newItems: PortfolioItem[] = [...portfolioItems];
+    for (const file of files) {
+      const ext = file.name.split('.').pop();
+      const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const path = `${user.id}/${fname}`;
+      const { error } = await supabase.storage.from('editor-portfolio').upload(path, file);
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(path);
+        newItems.push({ url: urlData.publicUrl, type: file.type.startsWith('video') ? 'video' : 'image' });
+      }
+    }
+    // Save to editor profile
+    await supabase.from('editing_editor_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
+    // Sync to creator_profiles so the public profile card shows the portfolio
+    await supabase.from('creator_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
+    setPortfolioItems(newItems);
+    setPortfolioUploading(false);
+    e.target.value = '';
+  };
+
+  const removePortfolioItem = async (index: number) => {
+    if (!user) return;
+    const updated = portfolioItems.filter((_, i) => i !== index);
+    await supabase.from('editing_editor_profiles').update({ portfolio_items: updated }).eq('user_id', user.id);
+    await supabase.from('creator_profiles').update({ portfolio_items: updated }).eq('user_id', user.id);
+    setPortfolioItems(updated);
   };
 
   if (!session) {
@@ -251,6 +307,7 @@ export default function EditingDashboard() {
     { id: 'tasks' as Tab, icon: <ListChecks size={20} />, label: 'My Tasks' },
     { id: 'messages' as Tab, icon: <MessageCircle size={20} />, label: 'Messages' },
     { id: 'stock' as Tab, icon: <Film size={20} />, label: 'Stock' },
+    { id: 'portfolio' as Tab, icon: <Images size={20} />, label: 'Portfolio' },
     { id: 'wallet' as Tab, icon: <Wallet size={20} />, label: 'Wallet' },
   ];
 
@@ -297,7 +354,7 @@ export default function EditingDashboard() {
         {/* Top Header */}
         <header className="sticky top-0 z-40 px-4 sm:px-8 py-4 flex items-center justify-between bg-[#0B101B]/70 backdrop-blur-2xl border-b border-white/[0.05]">
           <div>
-            <h1 className="text-xl font-bold text-white">{tab === 'overview' ? 'Dashboard' : tab === 'available' ? 'Job Board' : tab === 'tasks' ? 'My Tasks' : tab === 'messages' ? 'Messages' : tab === 'stock' ? 'Stock Market' : 'Wallet'}</h1>
+            <h1 className="text-xl font-bold text-white">{tab === 'overview' ? 'Dashboard' : tab === 'available' ? 'Job Board' : tab === 'tasks' ? 'My Tasks' : tab === 'messages' ? 'Messages' : tab === 'stock' ? 'Stock Market' : tab === 'portfolio' ? 'My Portfolio' : 'Wallet'}</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400/20 to-cyan-400/20 border border-white/10 flex items-center justify-center overflow-hidden">
@@ -685,6 +742,115 @@ export default function EditingDashboard() {
           {tab === 'stock' && (
             <div className="animate-[fadeInUp_0.3s_ease-out]">
               <StockMarket creatorId={editorProfile.user_id} creatorName={realName || editorProfile.display_name} />
+            </div>
+          )}
+
+          {/* ── Portfolio Tab ── */}
+          {tab === 'portfolio' && (
+            <div className="space-y-6 animate-[fadeInUp_0.3s_ease-out]">
+              {/* Upload zone */}
+              <div className="rounded-2xl p-6 bg-white/[0.03] backdrop-blur-2xl border border-white/[0.05] shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Portfolio</h3>
+                    <p className="text-xs mt-0.5" style={{ color: '#475569' }}>Upload images and videos to showcase your editing work. These appear on your public profile card.</p>
+                  </div>
+                  <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all hover:opacity-90"
+                    style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.25)' }}>
+                    {portfolioUploading ? (
+                      <div className="w-3.5 h-3.5 border-2 border-blue-400/40 border-t-blue-400 rounded-full animate-spin" />
+                    ) : (
+                      <Upload size={13} />
+                    )}
+                    {portfolioUploading ? 'Uploading...' : 'Upload Files'}
+                    <input
+                      ref={portfolioInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,video/mp4,video/quicktime,video/webm"
+                      className="hidden"
+                      onChange={handlePortfolioUpload}
+                      disabled={portfolioUploading}
+                    />
+                  </label>
+                </div>
+
+                {portfolioError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium mb-4" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {portfolioError}
+                  </div>
+                )}
+
+                {portfolioItems.length === 0 ? (
+                  <label className="flex flex-col items-center justify-center gap-3 rounded-xl p-12 cursor-pointer transition-all hover:border-blue-500/30"
+                    style={{ border: '2px dashed rgba(255,255,255,0.08)', color: '#374151' }}>
+                    <Images size={32} className="text-gray-700" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-gray-500">Drop your best work here</p>
+                      <p className="text-xs mt-1 text-gray-600">Images & videos up to 50 MB each</p>
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/mp4,video/quicktime,video/webm"
+                      className="hidden"
+                      onChange={handlePortfolioUpload}
+                      disabled={portfolioUploading}
+                    />
+                  </label>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {portfolioItems.map((item, i) => (
+                      <div key={i} className="relative aspect-video rounded-xl overflow-hidden group" style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url) ? (
+                          <video
+                            src={item.url}
+                            muted
+                            playsInline
+                            preload="metadata"
+                            controls
+                            controlsList="nodownload"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img src={item.url} alt={`Portfolio ${i + 1}`} className="w-full h-full object-cover" />
+                        )}
+                        <button
+                          onClick={() => removePortfolioItem(i)}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.15)' }}
+                        >
+                          <Trash2 size={12} className="text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="aspect-video rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all hover:border-blue-500/30"
+                      style={{ border: '2px dashed rgba(255,255,255,0.08)', color: '#374151' }}>
+                      <Upload size={18} className="text-gray-600" />
+                      <span className="text-[10px] mt-1 text-gray-600">Add more</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,video/mp4,video/quicktime,video/webm"
+                        className="hidden"
+                        onChange={handlePortfolioUpload}
+                        disabled={portfolioUploading}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/[0.05]">
+                <div className="flex items-start gap-2.5">
+                  <Images size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-semibold text-white mb-0.5">Visibility</div>
+                    <p className="text-xs" style={{ color: '#475569' }}>Your portfolio is shown on your public creator profile card so clients can see your editing style before ordering.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
