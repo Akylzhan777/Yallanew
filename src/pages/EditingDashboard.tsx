@@ -206,29 +206,53 @@ export default function EditingDashboard() {
     if (!files.length) return;
     setPortfolioError(null);
     const VIDEO_MAX = 1024 * 1024 * 1024;
-    const oversized = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX);
-    if (oversized) {
-      setPortfolioError('Video file must not exceed 1 GB');
+    const IMAGE_MAX = 50 * 1024 * 1024;
+    const badVideo = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX);
+    if (badVideo) {
+      setPortfolioError(`Видео "${badVideo.name}" больше 1 ГБ.`);
+      e.target.value = '';
+      return;
+    }
+    const badImage = files.find(f => f.type.startsWith('image') && f.size > IMAGE_MAX);
+    if (badImage) {
+      setPortfolioError(`Изображение "${badImage.name}" больше 50 МБ.`);
       e.target.value = '';
       return;
     }
     setPortfolioUploading(true);
     const newItems: PortfolioItem[] = [...portfolioItems];
+    const failed: string[] = [];
     for (const file of files) {
-      const ext = file.name.split('.').pop();
+      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
       const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const path = `${user.id}/${fname}`;
-      const { error } = await supabase.storage.from('editor-portfolio').upload(path, file);
-      if (!error) {
-        const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(path);
-        newItems.push({ url: urlData.publicUrl, type: file.type.startsWith('video') ? 'video' : 'image' });
+      const { error } = await supabase.storage
+        .from('editor-portfolio')
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+      if (error) {
+        console.error('Portfolio upload error:', error);
+        failed.push(`${file.name}: ${error.message}`);
+        continue;
       }
+      const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(path);
+      newItems.push({
+        url: urlData.publicUrl,
+        type: file.type.startsWith('video') ? 'video' : 'image',
+        title: file.name,
+      });
     }
-    // Save to editor profile
-    await supabase.from('editing_editor_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
-    // Sync to creator_profiles so the public profile card shows the portfolio
-    await supabase.from('creator_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
-    setPortfolioItems(newItems);
+    if (newItems.length !== portfolioItems.length) {
+      await supabase.from('editing_editor_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
+      await supabase.from('creator_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
+      setPortfolioItems(newItems);
+    }
+    if (failed.length) {
+      setPortfolioError(`Не удалось загрузить: ${failed.join(' · ')}`);
+    }
     setPortfolioUploading(false);
     e.target.value = '';
   };
