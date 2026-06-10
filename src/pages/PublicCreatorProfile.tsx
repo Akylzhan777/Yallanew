@@ -51,7 +51,7 @@ interface PublicProfile {
   model_shoot_types: string | null;
   model_restrictions: string | null;
   portfolio_urls: string[] | null;
-  portfolio_items: Array<{ url: string; title?: string; clientName?: string; description?: string }> | null;
+  portfolio_items: Array<{ url: string; type?: 'image' | 'video'; title?: string; clientName?: string; description?: string }> | null;
   model_bust: string | null;
   region: string | null;
   model_waist: string | null;
@@ -1082,13 +1082,27 @@ function PublicCreatorProfile({ username }: { username: string }) {
                 ))}
               </div>
             ) : (
-              /* Models / photographers: image grid */
+              /* Models / photographers: image/video grid */
               <div className={`grid gap-2 ${isModel ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {portfolioItems.map((item, i) => (
-                  <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <img src={item.url} alt={item.title || `Work ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                  </div>
-                ))}
+                {portfolioItems.map((item, i) => {
+                  const isVideo = item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
+                  return (
+                    <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                      {isVideo ? (
+                        <video
+                          src={item.url}
+                          controls
+                          controlsList="nodownload"
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img src={item.url} alt={item.title || `Work ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

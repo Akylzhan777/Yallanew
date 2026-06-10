@@ -87,6 +87,7 @@ export default function CreatorDashboard() {
   const [shareCopied, setShareCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
 
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -272,6 +273,14 @@ export default function CreatorDashboard() {
     if (!user || !creatorProfile) return;
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
+    setMediaUploadError(null);
+    const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+    const oversized = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX_BYTES);
+    if (oversized) {
+      setMediaUploadError(isKZ ? 'Размер видео не должен превышать 50 МБ' : 'Video file must not exceed 50 MB');
+      e.target.value = '';
+      return;
+    }
     setUploadingMedia(true);
     for (const file of files) {
       const ext = file.name.split('.').pop();
@@ -1121,6 +1130,13 @@ export default function CreatorDashboard() {
                 </label>
               </div>
 
+              {mediaUploadError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {mediaUploadError}
+                </div>
+              )}
+
               {/* Video Comp Card (Models only) */}
               {isModel && (
                 <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -1188,12 +1204,15 @@ export default function CreatorDashboard() {
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
                       {item.media_type === 'video' ? (
-                        <div
-                          className="w-full h-full flex items-center justify-center"
-                          style={{ background: '#0a0f1a' }}
-                        >
-                          <Play size={24} style={{ color: '#94a3b8' }} />
-                        </div>
+                        <video
+                          src={item.url}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          controls
+                          controlsList="nodownload"
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <img src={item.url} alt="" className="w-full h-full object-cover" />
                       )}

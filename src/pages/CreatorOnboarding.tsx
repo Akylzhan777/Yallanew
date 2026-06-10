@@ -344,9 +344,9 @@ export default function CreatorOnboarding() {
           })());
         }
 
-        // Model: upload portfolio photos (up to 10)
+        // Model: upload portfolio photos/videos (up to 10)
         if (creatorType === 'model' && portfolioFiles.length > 0 && user) {
-          const portfolioUrls: string[] = [];
+          const portfolioItems: Array<{ url: string; type: 'image' | 'video' }> = [];
           for (const file of portfolioFiles) {
             uploadTasks.push((async () => {
               const ext = file.name.split('.').pop();
@@ -355,12 +355,14 @@ export default function CreatorOnboarding() {
               const { error: upErr } = await supabase.storage.from('creator-portfolio').upload(path, file);
               if (!upErr) {
                 const { data: urlData } = supabase.storage.from('creator-portfolio').getPublicUrl(path);
-                portfolioUrls.push(urlData.publicUrl);
+                const mediaType: 'image' | 'video' = file.type.startsWith('video') ? 'video' : 'image';
+                portfolioItems.push({ url: urlData.publicUrl, type: mediaType });
               }
             })());
           }
           await Promise.all(uploadTasks);
-          payload.portfolio_urls = portfolioUrls;
+          payload.portfolio_items = portfolioItems;
+          payload.portfolio_urls = portfolioItems.map(i => i.url);
         } else if (creatorType === 'telegram_channel') {
           const cpRow = await supabase.from('creator_profiles').select('id').eq('user_id', user.id).maybeSingle();
           // Upload client logos
@@ -503,6 +505,13 @@ export default function CreatorOnboarding() {
 
   const handlePortfolioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
+    const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+    const oversized = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX_BYTES);
+    if (oversized) {
+      alert('Video file must not exceed 50 MB');
+      e.target.value = '';
+      return;
+    }
     setPortfolioFiles(prev => [...prev, ...files]);
     setPortfolioPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
   };
@@ -1276,18 +1285,26 @@ export default function CreatorOnboarding() {
                 <label className={labelCls}>{t('onboarding.model.portfolioPhotos')}</label>
                 <p className="text-xs mb-3" style={{ color: '#374151' }}>{t('onboarding.model.portfolioHint')}</p>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {portfolioPreviews.map((url, i) => (
-                    <div key={i} className="aspect-[3/4] rounded-xl overflow-hidden relative"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                      <button onClick={() => {
-                        setPortfolioFiles(prev => prev.filter((_, pi) => pi !== i));
-                        setPortfolioPreviews(prev => prev.filter((_, pi) => pi !== i));
-                      }} className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
-                        <X size={10} color="white" />
-                      </button>
-                    </div>
-                  ))}
+                  {portfolioPreviews.map((url, i) => {
+                    const file = portfolioFiles[i];
+                    const isVideo = file ? file.type.startsWith('video') : /\.(mp4|mov|webm)$/i.test(url);
+                    return (
+                      <div key={i} className="aspect-[3/4] rounded-xl overflow-hidden relative"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {isVideo ? (
+                          <video src={url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        )}
+                        <button onClick={() => {
+                          setPortfolioFiles(prev => prev.filter((_, pi) => pi !== i));
+                          setPortfolioPreviews(prev => prev.filter((_, pi) => pi !== i));
+                        }} className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
+                          <X size={10} color="white" />
+                        </button>
+                      </div>
+                    );
+                  })}
                   {portfolioPreviews.length < 10 && (
                     <label className="aspect-[3/4] rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all"
                       style={{ border: '2px dashed rgba(255,255,255,0.1)', color: '#374151' }}
@@ -1295,7 +1312,7 @@ export default function CreatorOnboarding() {
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#374151'; }}>
                       <Upload size={20} />
                       <span className="text-xs mt-1">{t('onboarding.model.addPhoto')}</span>
-                      <input type="file" accept="image/*" multiple className="hidden" onChange={handlePortfolioChange} />
+                      <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple className="hidden" onChange={handlePortfolioChange} />
                     </label>
                   )}
                 </div>
