@@ -1181,7 +1181,7 @@ export default function ProductionDashboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-4">
               {portfolioItems.map((item, i) => {
                 const isBunny = item.url.includes('iframe.mediadelivery.net');
                 const thumb = isBunny && item.videoId ? `https://vz-f9c8ad95-914.b-cdn.net/${item.videoId}/thumbnail.jpg` : null;
