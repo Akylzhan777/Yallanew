@@ -14,6 +14,10 @@ export default function AdminSettings() {
   const [markupSaving, setMarkupSaving] = useState(false);
   const [markupMsg, setMarkupMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  const [bunnyApiKey, setBunnyApiKey] = useState('');
+  const [bunnySaving, setBunnySaving] = useState(false);
+  const [bunnyMsg, setBunnyMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -32,6 +36,9 @@ export default function AdminSettings() {
   useEffect(() => {
     supabase.from('platform_settings').select('markup_percentage').eq('id', 1).maybeSingle().then(({ data }) => {
       if (data) setMarkupPct(String(data.markup_percentage));
+    });
+    supabase.from('app_settings').select('bunny_api_key').eq('id', 1).maybeSingle().then(({ data }) => {
+      if (data?.bunny_api_key) setBunnyApiKey(data.bunny_api_key);
     });
   }, []);
 
@@ -53,6 +60,22 @@ export default function AdminSettings() {
     const { data } = supabase.storage.from('brand_assets').getPublicUrl(path);
     onUrl(data.publicUrl);
     setUploading(false);
+  };
+
+  const handleSaveBunny = async () => {
+    setBunnySaving(true);
+    setBunnyMsg(null);
+    const { error } = await supabase
+      .from('app_settings')
+      .update({ bunny_api_key: bunnyApiKey.trim() })
+      .eq('id', 1);
+    if (error) {
+      setBunnyMsg({ type: 'err', text: error.message });
+    } else {
+      setBunnyMsg({ type: 'ok', text: 'Ключ сохранён!' });
+      setTimeout(() => setBunnyMsg(null), 3000);
+    }
+    setBunnySaving(false);
   };
 
   const handleSaveMarkup = async () => {
@@ -203,6 +226,39 @@ export default function AdminSettings() {
             </div>
           )}
         </Field>
+
+        <div style={{ borderTop: '1px solid #2d2d44', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+            Bunny Stream — API Key
+          </h3>
+          <Field label="BUNNY_API_KEY (для загрузки видео в портфолио)">
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <input
+                className="admin-input"
+                type="password"
+                value={bunnyApiKey}
+                onChange={e => setBunnyApiKey(e.target.value)}
+                placeholder="Вставьте Bunny Stream API Key"
+                style={{ flex: 1 }}
+              />
+              <button
+                className="admin-btn-primary"
+                onClick={handleSaveBunny}
+                disabled={bunnySaving}
+              >
+                {bunnySaving ? 'Сохранение...' : '💾 Сохранить'}
+              </button>
+              {bunnyMsg && (
+                <span style={{ fontSize: '0.875rem', color: bunnyMsg.type === 'ok' ? '#00C48C' : '#ef4444' }}>
+                  {bunnyMsg.text}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.4rem' }}>
+              Ключ хранится в БД и используется Edge Function bunny-upload при загрузке видео-портфолио редакторами.
+            </p>
+          </Field>
+        </div>
 
         <div style={{ borderTop: '1px solid #2d2d44', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>

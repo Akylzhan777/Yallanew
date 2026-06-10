@@ -1,0 +1,1 @@
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS bunny_api_key text DEFAULT '' NOT NULL;

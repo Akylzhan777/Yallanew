@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,9 +21,23 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const apiKey = Deno.env.get("BUNNY_API_KEY");
+  // Resolve API key: env var first, then app_settings table
+  let apiKey = Deno.env.get("BUNNY_API_KEY") ?? "";
+
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "BUNNY_API_KEY not configured" }), {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const db = createClient(supabaseUrl, serviceKey);
+    const { data } = await db
+      .from("app_settings")
+      .select("bunny_api_key")
+      .eq("id", 1)
+      .maybeSingle();
+    apiKey = data?.bunny_api_key ?? "";
+  }
+
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "Bunny API key not configured. Add it in Admin \u2192 Settings \u2192 Bunny Stream." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
