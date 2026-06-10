@@ -1037,7 +1037,18 @@ function PublicCreatorProfile({ username }: { username: string }) {
                     <div className="flex-1 min-w-0">
                       <span className="font-semibold text-sm text-white">{pkg.name}</span>
                       {pkg.description && (
-                        <p className="text-xs mt-0.5 leading-snug" style={{ color: '#64748b' }}>{pkg.description}</p>
+                        <p
+                          className="text-xs mt-0.5 leading-snug"
+                          style={{
+                            color: '#64748b',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {pkg.description}
+                        </p>
                       )}
                     </div>
                     <div className="flex-shrink-0 text-right">
@@ -1052,11 +1063,12 @@ function PublicCreatorProfile({ username }: { username: string }) {
                       Order <ExternalLink size={10} />
                     </div>
                   </div>
-                  {pkg.includes && pkg.includes.length > 0 && (
+                  {pkg.includes && pkg.includes.length > 0 && pkg.includes.filter(Boolean).join(' ').trim() !== (pkg.description || '').trim() && (
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                       {pkg.includes.filter(Boolean).map(item => (
-                        <span key={item} className="flex items-center gap-1 text-xs" style={{ color: '#64748b' }}>
-                          <Check size={9} style={{ color: '#00C48C' }} />{item}
+                        <span key={item} className="flex items-center gap-1 text-xs max-w-full" style={{ color: '#64748b' }}>
+                          <Check size={9} style={{ color: '#00C48C', flexShrink: 0 }} />
+                          <span className="truncate">{item}</span>
                         </span>
                       ))}
                     </div>
