@@ -90,8 +90,13 @@ Deno.serve(async (req: Request) => {
       .update({ status: "paid" })
       .eq("id", order_id);
 
-    // Credit creator balance (80% of package_price)
-    const creatorAmount = Math.round(order.package_price * 0.80);
+    // Model B: package_price = clientPrice. Creator payout = creator_net_amount (frozen at checkout).
+    // Fallback: package_price / 1.2 recovers creator's base price.
+    const creatorAmount = Math.round(
+      (order.creator_net_amount && order.creator_net_amount > 0)
+        ? order.creator_net_amount
+        : order.package_price / 1.2
+    );
 
     const { data: profile } = await supabase
       .from("creator_profiles")

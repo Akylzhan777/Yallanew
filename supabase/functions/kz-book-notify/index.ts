@@ -115,11 +115,12 @@ Deno.serve(async (req: Request) => {
     if (package_id) {
       const pkg = profilePackages.find((p) => p.id === package_id);
       if (pkg) {
-        // actualPrice = what client pays; never trust the client-sent price
+        // Model B: clientPrice = pkg.price * 1.2 (what client pays → package_price).
+        // Creator payout = pkg.price (base price, no deduction).
         const actualPrice = pkg.clientPrice ?? Math.round(pkg.price * 1.2);
         resolvedPackageName = pkg.name;
         packagePrice = actualPrice;
-        creatorPayoutAmount = Math.round(actualPrice * 0.8);
+        creatorPayoutAmount = pkg.price;
       }
     }
 

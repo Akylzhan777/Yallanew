@@ -90,7 +90,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const isKZ = region === "KZ";
-    const netAmount = Math.round(order.package_price * 0.8);
+    // Model B: package_price = clientPrice. Creator payout = creator_net_amount (frozen at checkout).
+    // Fallback: package_price / 1.2 recovers the creator's base price.
+    const netAmount = Math.round(
+      (order.creator_net_amount && order.creator_net_amount > 0)
+        ? order.creator_net_amount
+        : order.package_price / 1.2
+    );
 
     // 1. Update order status:
     //    KZ → 'on_hold' (funds frozen in escrow until client accepts work)

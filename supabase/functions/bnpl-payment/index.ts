@@ -203,9 +203,14 @@ async function handleWebhook(req: Request): Promise<Response> {
       .maybeSingle();
 
     if (order) {
-      // Record escrow transaction
-      const commission = Math.round(order.package_price * 0.15);
-      const netAmount = order.package_price - commission;
+      // Model B: package_price = clientPrice. creator_net_amount = creator's base price.
+      // Fallback: package_price / 1.2.
+      const netAmount = Math.round(
+        (order.creator_net_amount && order.creator_net_amount > 0)
+          ? order.creator_net_amount
+          : order.package_price / 1.2
+      );
+      const commission = order.package_price - netAmount;
 
       await supabase.from("creator_transactions").insert({
         creator_id: order.creator_id,
