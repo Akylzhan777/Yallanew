@@ -37,7 +37,7 @@ interface ProductionDealChat {
 }
 
 interface KzPkg { id: string; name: string; price: number; deliveryDays: number; description: string }
-interface PortfolioItem { url: string; title?: string; clientName?: string; description?: string }
+interface PortfolioItem { url: string; type?: 'image' | 'video'; videoId?: string; title?: string; clientName?: string; description?: string }
 
 type Tab = 'home' | 'shoots' | 'messages' | 'wallet' | 'profile';
 
@@ -294,20 +294,51 @@ export default function ProductionDashboard() {
   }
 
   async function uploadPortfolioVideo(file: File) {
-    if (!user || portfolioItems.length >= 5) return;
+    if (!user || portfolioItems.length >= 10) return;
     setPortfolioUploading(true);
     setPortfolioUploadPct(10);
-    const ext = file.name.split('.').pop();
-    const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from('videographer-portfolio').upload(path, file, { upsert: false, duplex: 'half' });
-    if (!error) {
-      const { data: urlData } = supabase.storage.from('videographer-portfolio').getPublicUrl(path);
-      const newItems: PortfolioItem[] = [...portfolioItems, { url: urlData.publicUrl }];
-      setPortfolioItems(newItems);
-      await savePortfolioItems(newItems);
+    try {
+      const isVideo = file.type.startsWith('video');
+      if (isVideo) {
+        const res = await fetch('https://cybxtdcomnmswqrworzc.supabase.co/functions/v1/bunny-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: file.name }),
+        });
+        if (!res.ok) throw new Error('bunny-upload failed');
+        const { videoId, libraryId, apiKey } = await res.json() as { videoId: string; libraryId: number; apiKey: string };
+        setPortfolioUploadPct(40);
+        const putRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+          method: 'PUT',
+          headers: { AccessKey: apiKey },
+          body: file,
+        });
+        if (!putRes.ok) throw new Error('Bunny upload failed');
+        const newItems: PortfolioItem[] = [...portfolioItems, {
+          url: `https://iframe.mediadelivery.net/embed/679977/${videoId}`,
+          type: 'video',
+          videoId,
+          title: file.name,
+        }];
+        setPortfolioItems(newItems);
+        await savePortfolioItems(newItems);
+      } else {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('videographer-portfolio').upload(path, file, { upsert: false, contentType: file.type || undefined });
+        if (error) throw error;
+        const { data: urlData } = supabase.storage.from('videographer-portfolio').getPublicUrl(path);
+        const newItems: PortfolioItem[] = [...portfolioItems, { url: urlData.publicUrl, type: 'image', title: file.name }];
+        setPortfolioItems(newItems);
+        await savePortfolioItems(newItems);
+      }
+      setPortfolioUploadPct(100);
+    } catch (e) {
+      console.error('Portfolio upload error:', e);
+      alert('Не удалось загрузить файл. Попробуйте ещё раз.');
+    } finally {
+      setPortfolioUploading(false);
     }
-    setPortfolioUploadPct(100);
-    setPortfolioUploading(false);
   }
 
   async function savePortfolioItems(items: PortfolioItem[]) {
@@ -319,8 +350,10 @@ export default function ProductionDashboard() {
   async function deletePortfolioVideo(idx: number) {
     if (!user) return;
     const item = portfolioItems[idx];
-    const pathPart = item.url.split('/videographer-portfolio/')[1];
-    if (pathPart) await supabase.storage.from('videographer-portfolio').remove([decodeURIComponent(pathPart)]);
+    if (item.url.includes('/videographer-portfolio/')) {
+      const pathPart = item.url.split('/videographer-portfolio/')[1];
+      if (pathPart) await supabase.storage.from('videographer-portfolio').remove([decodeURIComponent(pathPart)]);
+    }
     const newItems = portfolioItems.filter((_, i) => i !== idx);
     setPortfolioItems(newItems);
     if (editingPortfolioIdx === idx) setEditingPortfolioIdx(null);
@@ -1056,7 +1089,7 @@ export default function ProductionDashboard() {
                 setProfileSection('editProfile');
               }} />
               <MenuRow icon={<Package size={18} className="text-amber-400" />} label="Мои услуги" sub={`${(creatorProfile.packages as KzPkg[] ?? []).length} пакетов`} onClick={() => setProfileSection('packages')} />
-              <MenuRow icon={<Image size={18} className="text-emerald-400" />} label="Моё портфолио" sub={`${portfolioItems.length}/5 видео`} onClick={() => setProfileSection('portfolio')} />
+              <MenuRow icon={<Image size={18} className="text-emerald-400" />} label="Моё портфолио" sub={`${portfolioItems.length}/10 файлов`} onClick={() => setProfileSection('portfolio')} />
               {isKZ && <MenuRow icon={<CreditCard size={18} className="text-purple-400" />} label="Банковские реквизиты" sub="Kaspi, счёт для выплат" onClick={() => setProfileSection('bank')} />}
               {isKZ && <MenuRow icon={<Link2 size={18} className="text-amber-400" />} label="Ссылка в Bio" sub="Инструкция для Instagram" onClick={() => setProfileSection('biohint')} />}
               {isKZ && <MenuRow icon={<MessageSquare size={18} className="text-emerald-400" />} label="WhatsApp для заявок" sub={whatsappNumber || 'Не указан'} onClick={() => setProfileSection('whatsapp')} />}
@@ -1131,7 +1164,7 @@ export default function ProductionDashboard() {
             </button>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-bold text-white">Моё портфолио</h2>
-              <span className="text-xs text-gray-500">{portfolioItems.length}/5</span>
+              <span className="text-xs text-gray-500">{portfolioItems.length}/10</span>
             </div>
 
             {portfolioUploading && (
@@ -1149,15 +1182,32 @@ export default function ProductionDashboard() {
             <div className="space-y-3 mb-4">
               {portfolioItems.map((item, i) => (
                 <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: editingPortfolioIdx === i ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.05)' }}>
+                  {/* Bunny iframe preview */}
+                  {item.url.includes('iframe.mediadelivery.net') && (
+                    <div className="w-full rounded-t-2xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                      <iframe src={item.url} className="w-full h-full" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen style={{ border: 'none' }} />
+                    </div>
+                  )}
+                  {/* Image preview */}
+                  {item.type === 'image' && (
+                    <div className="w-full rounded-t-2xl overflow-hidden" style={{ maxHeight: 180 }}>
+                      <img src={item.url} alt={item.title || ''} className="w-full object-cover" style={{ maxHeight: 180 }} />
+                    </div>
+                  )}
                   {/* Preview row */}
                   <div className="flex items-center gap-3 p-4">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.15)' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      {item.type === 'image'
+                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{item.title || `Видео ${i + 1}`}</p>
+                      <p className="text-xs font-semibold text-white truncate">{item.title || `Файл ${i + 1}`}</p>
                       {item.clientName && <p className="text-[10px] text-gray-500 truncate">{item.clientName}</p>}
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] text-amber-400/70 hover:text-amber-400">Открыть ↗</a>
+                      {!item.url.includes('iframe.mediadelivery.net') && (
+                        <a href={item.url} target="_blank" rel="noreferrer" className="text-[10px] text-amber-400/70 hover:text-amber-400">Открыть ↗</a>
+                      )}
                     </div>
                     <button
                       onClick={() => setEditingPortfolioIdx(editingPortfolioIdx === i ? null : i)}
@@ -1215,15 +1265,15 @@ export default function ProductionDashboard() {
               ))}
             </div>
 
-            {portfolioItems.length < 5 && !portfolioUploading && (
+            {portfolioItems.length < 10 && !portfolioUploading && (
               <label className="flex flex-col items-center justify-center py-10 rounded-2xl cursor-pointer transition-all" style={{ border: '2px dashed rgba(255,255,255,0.1)' }}>
                 <Upload size={28} className="text-gray-600 mb-2" />
-                <span className="text-sm font-medium text-gray-500">Загрузить видео</span>
-                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/5 · до 10 ГБ</span>
-                <input type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,video/mpeg" className="hidden" disabled={portfolioUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPortfolioVideo(f); }} />
+                <span className="text-sm font-medium text-gray-500">Загрузить видео или фото</span>
+                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/10 · видео до 1 ГБ</span>
+                <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" className="hidden" disabled={portfolioUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPortfolioVideo(f); }} />
               </label>
             )}
-            {portfolioItems.length >= 5 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 5 видео в портфолио</p>}
+            {portfolioItems.length >= 10 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 10 файлов в портфолио</p>}
           </div>
         )}
 
