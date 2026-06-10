@@ -1266,8 +1266,8 @@ export default function ProductionDashboard() {
               <label className="flex flex-col items-center justify-center py-10 rounded-2xl cursor-pointer transition-all" style={{ border: '2px dashed rgba(255,255,255,0.1)' }}>
                 <Upload size={28} className="text-gray-600 mb-2" />
                 <span className="text-sm font-medium text-gray-500">Загрузить видео или фото</span>
-                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/100 · можно выбрать несколько</span>
-                <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" multiple className="hidden" disabled={portfolioUploading} onChange={e => { const files = Array.from(e.target.files ?? []); if (files.length) uploadPortfolioFiles(files); e.target.value = ''; }} />
+                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/100 · можно выбрать несколько · видео до 1 ГБ</span>
+                <input type="file" multiple accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" className="hidden" disabled={portfolioUploading} onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) uploadPortfolioFiles(fs); e.currentTarget.value = ''; }} />
               </label>
             )}
             {portfolioItems.length >= 100 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 100 файлов в портфолио</p>}
