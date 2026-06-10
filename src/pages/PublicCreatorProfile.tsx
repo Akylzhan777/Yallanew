@@ -63,6 +63,7 @@ interface PublicProfile {
   model_skills: string | null;
   model_features: string | null;
   video_comp_url: string | null;
+  additional_roles?: string[] | null;
 }
 
 function formatNum(n: number): string {
@@ -645,7 +646,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
       try {
         const { data, error } = await publicSupabase
           .from('creator_profiles')
-          .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region')
+          .select('id, display_name, handle, username, bio, creator_type, category, location, languages, avatar_url, cover_url, instagram_url, youtube_url, tiktok_url, followers_count, avg_views, engagement_rate, rating, review_count, is_verified, is_hidden, status, packages, is_published, equipment_list, model_height, model_weight, model_age, model_nationality, model_hourly_rate, model_min_hours, model_shoot_types, model_restrictions, portfolio_urls, portfolio_items, model_bust, model_waist, model_hips, model_shoe_size, model_clothing_size, model_hair_color, model_eye_color, model_skills, model_features, video_comp_url, region, additional_roles')
           .eq('username', cleanUsername)
           .maybeSingle();
         clearTimeout(timeout);
@@ -820,6 +821,20 @@ function PublicCreatorProfile({ username }: { username: string }) {
             <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(99,179,237,0.1)', color: '#63b3ed', border: '1px solid rgba(99,179,237,0.2)' }}>
               {profile.creator_type === 'ugc' ? 'UGC Creator' : profile.creator_type === 'model' ? 'Model' : profile.creator_type === 'videographer' ? 'Videographer' : profile.creator_type === 'photographer' ? 'Photographer' : profile.creator_type === 'editor' ? 'Video Editor' : profile.creator_type === 'telegram_channel' ? 'Telegram Channel' : 'Blogger'}
             </span>
+            {Array.isArray(profile.additional_roles) && profile.additional_roles.length > 0 && (() => {
+              const ROLE_LABELS: Record<string, string> = {
+                videographer: 'Видеограф', operator: 'Оператор', editor: 'Монтажёр',
+                mobilographer: 'Мобилограф', ugc: 'UGC', blogger: 'Блогер',
+                photographer: 'Фотограф', model: 'Модель',
+              };
+              return profile.additional_roles!
+                .filter(r => r !== profile.creator_type)
+                .map(r => (
+                  <span key={r} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'rgba(168,85,247,0.10)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                    {ROLE_LABELS[r] || r}
+                  </span>
+                ));
+            })()}
             <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)' }}>
               {profile.category}
             </span>

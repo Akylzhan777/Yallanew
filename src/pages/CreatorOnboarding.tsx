@@ -70,6 +70,17 @@ const CREATOR_TYPES = [
   { value: 'editor', labelKey: 'onboarding.creatorTypes.editor.title', descKey: 'onboarding.creatorTypes.editor.description' },
   { value: 'telegram_channel', labelKey: 'onboarding.creatorTypes.telegram.title', descKey: 'onboarding.creatorTypes.telegram.description' },
 ];
+
+const ADDITIONAL_ROLES = [
+  { value: 'videographer', label: 'Видеограф' },
+  { value: 'operator', label: 'Оператор' },
+  { value: 'editor', label: 'Монтажёр' },
+  { value: 'mobilographer', label: 'Мобилограф' },
+  { value: 'ugc', label: 'UGC-креатор' },
+  { value: 'blogger', label: 'Блогер' },
+  { value: 'photographer', label: 'Фотограф' },
+  { value: 'model', label: 'Модель' },
+];
 const LANGUAGES = ['English', 'Arabic', 'Russian', 'French', 'Hindi', 'Urdu', 'Tagalog', 'Mandarin'];
 const LANGUAGES_KZ: { value: string; label: string }[] = [
   { value: 'Kazakh', label: 'Казахский' },
@@ -129,6 +140,9 @@ export default function CreatorOnboarding() {
     ? CREATOR_TYPES.filter(ct => ct.value === 'ugc' || ct.value === 'videographer')
     : CREATOR_TYPES;
   const [creatorType, setCreatorType] = useState<string>(creatorProfile?.creator_type ?? (region === 'KZ' ? '' : 'blogger'));
+  const [additionalRoles, setAdditionalRoles] = useState<string[]>((creatorProfile as unknown as { additional_roles?: string[] })?.additional_roles ?? []);
+  const toggleRole = (role: string) =>
+    setAdditionalRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
   const [category, setCategory] = useState(creatorProfile?.category ?? 'lifestyle');
   const [location, setLocation] = useState(creatorProfile?.location ?? (region === 'KZ' ? 'Алматы, KZ' : 'Dubai, UAE'));
   const [languages, setLanguages] = useState<string[]>(creatorProfile?.languages ?? ['English']);
@@ -275,7 +289,7 @@ export default function CreatorOnboarding() {
           bio_ru: bioText, // TODO: replace with translated Russian text
           bio_ar: bioText, // TODO: replace with translated Arabic text
         };
-        payload = { ...payload, display_name: displayName.trim(), username: username.trim(), handle: username.trim(), bio: bioText, ...bioTranslations, creator_type: creatorType, category, location, languages, whatsapp_number: whatsapp.trim(), preferred_language: langCodeFromList(languages), ...(creatorType === 'telegram_channel' ? { tg_channel_url: tgChannelUrl.trim(), legal_info: { licenseNo: licenseNo.trim(), advertiserPermit: advertiserPermit.trim() } } : {}), ...(creatorType === 'model' ? { model_height: modelHeight.trim(), model_weight: modelWeight.trim(), model_age: modelAge.trim(), model_nationality: modelNationality.trim() } : {}) };
+        payload = { ...payload, display_name: displayName.trim(), username: username.trim(), handle: username.trim(), bio: bioText, ...bioTranslations, creator_type: creatorType, category, location, languages, whatsapp_number: whatsapp.trim(), preferred_language: langCodeFromList(languages), additional_roles: additionalRoles, ...(creatorType === 'telegram_channel' ? { tg_channel_url: tgChannelUrl.trim(), legal_info: { licenseNo: licenseNo.trim(), advertiserPermit: advertiserPermit.trim() } } : {}), ...(creatorType === 'model' ? { model_height: modelHeight.trim(), model_weight: modelWeight.trim(), model_age: modelAge.trim(), model_nationality: modelNationality.trim() } : {}) };
       } else if (step === 2) {
         if (creatorType === 'telegram_channel') {
           if (!tgSubscribers.trim()) { setError('Please enter your subscriber count.'); setSaving(false); return; }
@@ -420,6 +434,7 @@ export default function CreatorOnboarding() {
             real_name: displayName.trim(),
             specialties: ['Reels', 'Commercial'],
             available: true,
+            additional_roles: additionalRoles,
           }, { onConflict: 'user_id' });
         }
         if (whatsapp && WHATSAPP_REGEX.test(whatsapp.trim())) {
@@ -720,6 +735,33 @@ export default function CreatorOnboarding() {
                     <p className="text-xs ml-6" style={{ color: '#475569' }}>{t(ct.descKey)}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Дополнительные роли (необязательно)</label>
+              <p className="text-xs mb-2" style={{ color: '#475569' }}>
+                Отметьте все услуги, которые вы оказываете. Они будут показаны на вашей странице. Можно выбрать несколько.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ADDITIONAL_ROLES.map(r => {
+                  const active = additionalRoles.includes(r.value);
+                  return (
+                    <button
+                      type="button"
+                      key={r.value}
+                      onClick={() => toggleRole(r.value)}
+                      className="text-xs px-3 py-2 rounded-xl font-medium transition-all"
+                      style={{
+                        background: active ? 'rgba(0,196,140,0.10)' : 'rgba(255,255,255,0.03)',
+                        color: active ? '#00C48C' : '#94a3b8',
+                        border: `1px solid ${active ? 'rgba(0,196,140,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                      }}
+                    >
+                      {active ? '✓ ' : ''}{r.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
