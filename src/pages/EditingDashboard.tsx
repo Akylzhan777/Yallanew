@@ -205,10 +205,10 @@ export default function EditingDashboard() {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setPortfolioError(null);
-    const VIDEO_MAX = 50 * 1024 * 1024;
+    const VIDEO_MAX = 1024 * 1024 * 1024;
     const oversized = files.find(f => f.type.startsWith('video') && f.size > VIDEO_MAX);
     if (oversized) {
-      setPortfolioError('Video file must not exceed 50 MB');
+      setPortfolioError('Video file must not exceed 1 GB');
       e.target.value = '';
       return;
     }
@@ -788,7 +788,7 @@ export default function EditingDashboard() {
                     <Images size={32} className="text-gray-700" />
                     <div className="text-center">
                       <p className="text-sm font-medium text-gray-500">Drop your best work here</p>
-                      <p className="text-xs mt-1 text-gray-600">Images & videos up to 50 MB each</p>
+                      <p className="text-xs mt-1 text-gray-600">Images & videos up to 1 GB each</p>
                     </div>
                     <input
                       type="file"
