@@ -631,6 +631,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   }
   const [copied, setCopied] = useState(false);
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
+  const [bioExpanded, setBioExpanded] = useState(false);
 
   useEffect(() => {
     if (!username) { setProfile(null); return; }
@@ -726,6 +727,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   const isProduction = profile.creator_type === 'videographer' || profile.creator_type === 'photographer';
   const isModel = profile.creator_type === 'model';
   const isVideographer = profile.creator_type === 'videographer';
+  const isEditorType = profile.creator_type === 'ugc' || profile.creator_type === 'videographer' || profile.creator_type === 'photographer' || profile.creator_type === 'editor';
   const isKzCreator = profile.region === 'KZ';
   const creatorRegion = (profile.region as Region) ?? 'UAE';
   const creatorCurrency = REGION_CONFIG[creatorRegion].currency;
@@ -824,9 +826,21 @@ function PublicCreatorProfile({ username }: { username: string }) {
           </div>
 
           {/* Bio */}
-          {profile.bio && (
-            <p className="text-sm leading-relaxed max-w-xs" style={{ color: '#94a3b8' }}>{profile.bio}</p>
-          )}
+          {profile.bio && (() => {
+            const cleanBio = profile.bio.split(/keywords:/i)[0].trim();
+            const isLong = cleanBio.length > 220;
+            const shown = bioExpanded || !isLong ? cleanBio : cleanBio.slice(0, 220).trim() + '…';
+            return (
+              <div className="max-w-sm mx-auto text-center">
+                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{shown}</p>
+                {isLong && (
+                  <button onClick={() => setBioExpanded(v => !v)} className="text-xs mt-1 font-medium" style={{ color: '#00C48C' }}>
+                    {bioExpanded ? 'Свернуть' : 'Читать ещё'}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Social links */}
           {platformLinks.length > 0 && (
@@ -974,7 +988,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
         )}
 
         {/* ─── STATS ─── */}
-        {!isProduction && !isModel && (
+        {!isProduction && !isModel && !isEditorType && (
           <div className="grid grid-cols-3 gap-2 mb-6">
             {[
               { label: t('marketplace.card.followers'), value: formatNum(profile.followers_count), icon: <Users size={16} /> },
