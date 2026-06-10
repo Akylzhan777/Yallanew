@@ -334,13 +334,18 @@ export default function CreatorOnboarding() {
 
         if (avatarFile && user) {
           uploadTasks.push((async () => {
-            const ext = avatarFile.name.split('.').pop();
+            const ext = (avatarFile.name.split('.').pop() || 'jpg').toLowerCase();
             const path = `${user.id}/avatar.${ext}`;
-            const { error: upErr } = await supabase.storage.from('creator-avatars').upload(path, avatarFile, { upsert: true });
-            if (!upErr) {
-              const { data: urlData } = supabase.storage.from('creator-avatars').getPublicUrl(path);
-              payload.avatar_url = urlData.publicUrl;
+            const { error: upErr } = await supabase.storage
+              .from('creator-avatars')
+              .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type || undefined });
+            if (upErr) {
+              console.error('Avatar upload error:', upErr);
+              setError('Не удалось загрузить фото: ' + upErr.message);
+              return;
             }
+            const { data: urlData } = supabase.storage.from('creator-avatars').getPublicUrl(path);
+            payload.avatar_url = urlData.publicUrl + '?t=' + Date.now();
           })());
         }
 
