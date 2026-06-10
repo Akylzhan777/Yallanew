@@ -222,23 +222,68 @@ export default function EditingDashboard() {
     setPortfolioUploading(true);
     const newItems: PortfolioItem[] = [...portfolioItems];
     const failed: string[] = [];
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token ?? '';
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     for (const file of files) {
       const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
       const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const path = `${user.id}/${fname}`;
-      const { error } = await supabase.storage
-        .from('editor-portfolio')
-        .upload(path, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type || undefined,
+      const objectPath = `${user.id}/${fname}`;
+      // TUS resumable upload — bypasses global project file size limit
+      try {
+        const uploadUrl = `${supabaseUrl}/storage/v1/upload/resumable`;
+        const chunkSize = 6 * 1024 * 1024; // 6 MB chunks
+        // Step 1: create TUS upload
+        const createRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+            'Content-Type': 'application/offset+octet-stream',
+            'Upload-Length': String(file.size),
+            'Upload-Metadata': [
+              `filename ${btoa(fname)}`,
+              `bucketName ${btoa('editor-portfolio')}`,
+              `objectName ${btoa(objectPath)}`,
+              `contentType ${btoa(file.type || 'application/octet-stream')}`,
+              `cacheControl ${btoa('3600')}`,
+            ].join(','),
+            'Tus-Resumable': '1.0.0',
+          },
         });
-      if (error) {
-        console.error('Portfolio upload error:', error);
-        failed.push(`${file.name}: ${error.message}`);
+        if (!createRes.ok) {
+          const msg = await createRes.text();
+          throw new Error(msg);
+        }
+        const location = createRes.headers.get('Location') ?? '';
+        // Step 2: upload chunks
+        let offset = 0;
+        while (offset < file.size) {
+          const chunk = file.slice(offset, offset + chunkSize);
+          const patchRes = await fetch(location, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+              'Content-Type': 'application/offset+octet-stream',
+              'Upload-Offset': String(offset),
+              'Tus-Resumable': '1.0.0',
+            },
+            body: chunk,
+          });
+          if (!patchRes.ok) {
+            const msg = await patchRes.text();
+            throw new Error(msg);
+          }
+          offset += chunkSize;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Portfolio upload error:', msg);
+        failed.push(`${file.name}: ${msg}`);
         continue;
       }
-      const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(path);
+      const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(objectPath);
       newItems.push({
         url: urlData.publicUrl,
         type: file.type.startsWith('video') ? 'video' : 'image',
