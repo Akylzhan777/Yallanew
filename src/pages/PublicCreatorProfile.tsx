@@ -114,7 +114,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
   }, []);
 
   const createOrderRecord = async (status: 'on_hold' | 'pending', _extraFields?: Record<string, string>): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
-    const commission = Math.round(clientPrice * 0.15);
+    const commission = Math.round(clientPrice * 0.20);
     const net = clientPrice - commission;
     const { data: order, error: insertErr } = await supabase.from('marketplace_orders').insert({
       creator_id: profile.id,
