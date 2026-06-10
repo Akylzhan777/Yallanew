@@ -293,52 +293,49 @@ export default function ProductionDashboard() {
     setKzWithdrawSubmitting(false);
   }
 
-  async function uploadPortfolioVideo(file: File) {
-    if (!user || portfolioItems.length >= 10) return;
+  async function uploadPortfolioFiles(files: File[]) {
+    if (!user) return;
+    const room = 100 - portfolioItems.length;
+    const batch = files.slice(0, Math.max(0, room));
+    if (batch.length === 0) return;
     setPortfolioUploading(true);
-    setPortfolioUploadPct(10);
-    try {
-      const isVideo = file.type.startsWith('video');
-      if (isVideo) {
-        const res = await fetch('https://cybxtdcomnmswqrworzc.supabase.co/functions/v1/bunny-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: file.name }),
-        });
-        if (!res.ok) throw new Error('bunny-upload failed');
-        const { videoId, libraryId, apiKey } = await res.json() as { videoId: string; libraryId: number; apiKey: string };
-        setPortfolioUploadPct(40);
-        const putRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
-          method: 'PUT',
-          headers: { AccessKey: apiKey },
-          body: file,
-        });
-        if (!putRes.ok) throw new Error('Bunny upload failed');
-        const newItems: PortfolioItem[] = [...portfolioItems, {
-          url: `https://iframe.mediadelivery.net/embed/679977/${videoId}`,
-          type: 'video',
-          videoId,
-          title: file.name,
-        }];
-        setPortfolioItems(newItems);
-        await savePortfolioItems(newItems);
-      } else {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from('videographer-portfolio').upload(path, file, { upsert: false, contentType: file.type || undefined });
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from('videographer-portfolio').getPublicUrl(path);
-        const newItems: PortfolioItem[] = [...portfolioItems, { url: urlData.publicUrl, type: 'image', title: file.name }];
-        setPortfolioItems(newItems);
-        await savePortfolioItems(newItems);
+    let current = [...portfolioItems];
+    const failed: string[] = [];
+    for (let idx = 0; idx < batch.length; idx++) {
+      const file = batch[idx];
+      setPortfolioUploadPct(Math.round((idx / batch.length) * 100));
+      try {
+        if (file.type.startsWith('video')) {
+          const res = await fetch('https://cybxtdcomnmswqrworzc.supabase.co/functions/v1/bunny-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: file.name }),
+          });
+          if (!res.ok) throw new Error('bunny-upload failed');
+          const { videoId, libraryId, apiKey } = await res.json() as { videoId: string; libraryId: number; apiKey: string };
+          const putRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+            method: 'PUT', headers: { AccessKey: apiKey }, body: file,
+          });
+          if (!putRes.ok) throw new Error('Bunny upload failed');
+          current = [...current, { url: `https://iframe.mediadelivery.net/embed/679977/${videoId}`, type: 'video' as const, videoId, title: file.name }];
+        } else {
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+          const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error } = await supabase.storage.from('videographer-portfolio').upload(path, file, { upsert: false, contentType: file.type || undefined });
+          if (error) throw error;
+          const { data: urlData } = supabase.storage.from('videographer-portfolio').getPublicUrl(path);
+          current = [...current, { url: urlData.publicUrl, type: 'image' as const, title: file.name }];
+        }
+        setPortfolioItems(current);
+        await savePortfolioItems(current);
+      } catch (e) {
+        console.error('Portfolio upload error:', file.name, e);
+        failed.push(file.name);
       }
-      setPortfolioUploadPct(100);
-    } catch (e) {
-      console.error('Portfolio upload error:', e);
-      alert('Не удалось загрузить файл. Попробуйте ещё раз.');
-    } finally {
-      setPortfolioUploading(false);
     }
+    setPortfolioUploadPct(100);
+    setPortfolioUploading(false);
+    if (failed.length) alert('Не удалось загрузить: ' + failed.join(', '));
   }
 
   async function savePortfolioItems(items: PortfolioItem[]) {
@@ -1089,7 +1086,7 @@ export default function ProductionDashboard() {
                 setProfileSection('editProfile');
               }} />
               <MenuRow icon={<Package size={18} className="text-amber-400" />} label="Мои услуги" sub={`${(creatorProfile.packages as KzPkg[] ?? []).length} пакетов`} onClick={() => setProfileSection('packages')} />
-              <MenuRow icon={<Image size={18} className="text-emerald-400" />} label="Моё портфолио" sub={`${portfolioItems.length}/10 файлов`} onClick={() => setProfileSection('portfolio')} />
+              <MenuRow icon={<Image size={18} className="text-emerald-400" />} label="Моё портфолио" sub={`${portfolioItems.length}/100 файлов`} onClick={() => setProfileSection('portfolio')} />
               {isKZ && <MenuRow icon={<CreditCard size={18} className="text-purple-400" />} label="Банковские реквизиты" sub="Kaspi, счёт для выплат" onClick={() => setProfileSection('bank')} />}
               {isKZ && <MenuRow icon={<Link2 size={18} className="text-amber-400" />} label="Ссылка в Bio" sub="Инструкция для Instagram" onClick={() => setProfileSection('biohint')} />}
               {isKZ && <MenuRow icon={<MessageSquare size={18} className="text-emerald-400" />} label="WhatsApp для заявок" sub={whatsappNumber || 'Не указан'} onClick={() => setProfileSection('whatsapp')} />}
@@ -1164,7 +1161,7 @@ export default function ProductionDashboard() {
             </button>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-bold text-white">Моё портфолио</h2>
-              <span className="text-xs text-gray-500">{portfolioItems.length}/10</span>
+              <span className="text-xs text-gray-500">{portfolioItems.length}/100</span>
             </div>
 
             {portfolioUploading && (
@@ -1265,15 +1262,15 @@ export default function ProductionDashboard() {
               ))}
             </div>
 
-            {portfolioItems.length < 10 && !portfolioUploading && (
+            {portfolioItems.length < 100 && !portfolioUploading && (
               <label className="flex flex-col items-center justify-center py-10 rounded-2xl cursor-pointer transition-all" style={{ border: '2px dashed rgba(255,255,255,0.1)' }}>
                 <Upload size={28} className="text-gray-600 mb-2" />
                 <span className="text-sm font-medium text-gray-500">Загрузить видео или фото</span>
-                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/10 · видео до 1 ГБ</span>
-                <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" className="hidden" disabled={portfolioUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPortfolioVideo(f); }} />
+                <span className="text-xs text-gray-700 mt-1">{portfolioItems.length}/100 · можно выбрать несколько</span>
+                <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg" multiple className="hidden" disabled={portfolioUploading} onChange={e => { const files = Array.from(e.target.files ?? []); if (files.length) uploadPortfolioFiles(files); e.target.value = ''; }} />
               </label>
             )}
-            {portfolioItems.length >= 10 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 10 файлов в портфолио</p>}
+            {portfolioItems.length >= 100 && <p className="text-xs text-gray-600 text-center mt-2">Максимум 100 файлов в портфолио</p>}
           </div>
         )}
 
