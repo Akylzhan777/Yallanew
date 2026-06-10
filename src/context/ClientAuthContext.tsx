@@ -20,7 +20,7 @@ interface ClientAuthContextType {
   clientProfile: ClientProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName?: string, phone?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshClientProfile: () => Promise<void>;
 }
@@ -122,12 +122,12 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
     return { error: null };
   }
 
-  async function signUp(email: string, password: string, displayName?: string) {
+  async function signUp(email: string, password: string, displayName?: string, phone?: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { portal: 'client', display_name: displayName ?? '' },
+        data: { portal: 'client', display_name: displayName ?? '', phone: phone ?? '' },
       },
     });
     if (error) return { error: error.message };
@@ -139,6 +139,7 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
         user_id: data.user.id,
         email,
         display_name: displayName ?? email.split('@')[0],
+        phone: phone ?? null,
         region,
       }).select().maybeSingle();
 

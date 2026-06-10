@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Lock, Eye, EyeOff, Building2, ArrowRight, ChevronLeft, ShoppingBag, BarChart3, Shield } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Building2, ArrowRight, ChevronLeft, ShoppingBag, BarChart3, Shield, Phone } from 'lucide-react';
 import { useClientAuth } from '../context/ClientAuthContext';
 import { supabase } from '../lib/supabase';
 import { safeGetItem, safeRemoveItem } from '../utils/safeStorage';
@@ -16,6 +16,7 @@ export default function ClientAuth({ onBack }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +33,11 @@ export default function ClientAuth({ onBack }: Props) {
     if (!email.trim() || !password.trim()) { setError(t('clientAuth.errors.fillAll')); return; }
     if (password.length < 6) { setError(t('clientAuth.errors.shortPassword')); return; }
     if (mode === 'register' && !displayName.trim()) { setError(t('clientAuth.errors.needName')); return; }
+    const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/;
+    if (mode === 'register' && !PHONE_REGEX.test(phone.replace(/\s/g, ''))) {
+      setError('Введите корректный номер телефона в международном формате (например, +971501234567).');
+      return;
+    }
     setLoading(true);
     if (mode === 'login') {
       const { error: err } = await signIn(email, password);
@@ -61,7 +67,7 @@ export default function ClientAuth({ onBack }: Props) {
         window.location.replace('/brand/dashboard');
       }
     } else {
-      const { error: err } = await signUp(email, password, displayName);
+      const { error: err } = await signUp(email, password, displayName, phone.replace(/\s/g, ''));
       if (err) { setError(err); setLoading(false); return; }
       // Auto-login after signup
       const { error: loginErr } = await signIn(email, password);
@@ -194,6 +200,28 @@ export default function ClientAuth({ onBack }: Props) {
                     onFocus={focusBorder} onBlur={blurBorder}
                   />
                 </div>
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#64748b' }}>Phone number *</label>
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#374151' }} />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="+971 50 123 4567"
+                    className={inputCls}
+                    style={{ paddingLeft: 38 }}
+                    onFocus={focusBorder}
+                    onBlur={blurBorder}
+                  />
+                </div>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#64748b' }}>
+                  Ваш номер не виден другим пользователям и остаётся конфиденциальным. Он нужен только для регистрации и связи с вами со стороны администрации (передача заказа, уточнение деталей, технические вопросы).
+                </p>
               </div>
             )}
 

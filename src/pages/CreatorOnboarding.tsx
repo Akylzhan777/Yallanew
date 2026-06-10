@@ -681,6 +681,9 @@ export default function CreatorOnboarding() {
                   ? t('onboarding.whatsappInvalid')
                   : t(region === 'KZ' ? 'onboarding.whatsappHintKz' : 'onboarding.whatsappHint')}
               </p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: '#64748b' }}>
+                Ваш номер не виден другим пользователям и остаётся конфиденциальным. Он используется только для регистрации и связи с вами со стороны администрации (передача заказа, уточнение деталей, технические вопросы).
+              </p>
             </div>
 
             <div>
