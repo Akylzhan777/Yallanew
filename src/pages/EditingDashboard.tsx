@@ -38,6 +38,7 @@ interface PortfolioItem {
   url: string;
   type: 'image' | 'video';
   title?: string;
+  videoId?: string;
 }
 
 interface EditorDealChat {
@@ -222,73 +223,107 @@ export default function EditingDashboard() {
     setPortfolioUploading(true);
     const newItems: PortfolioItem[] = [...portfolioItems];
     const failed: string[] = [];
-    const session = await supabase.auth.getSession();
-    const accessToken = session.data.session?.access_token ?? '';
+    const authSession = await supabase.auth.getSession();
+    const accessToken = authSession.data.session?.access_token ?? '';
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     for (const file of files) {
-      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
-      const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const objectPath = `${user.id}/${fname}`;
-      // TUS resumable upload — bypasses global project file size limit
-      try {
-        const uploadUrl = `${supabaseUrl}/storage/v1/upload/resumable`;
-        const chunkSize = 6 * 1024 * 1024; // 6 MB chunks
-        // Step 1: create TUS upload
-        const createRes = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-            'Content-Type': 'application/offset+octet-stream',
-            'Upload-Length': String(file.size),
-            'Upload-Metadata': [
-              `filename ${btoa(fname)}`,
-              `bucketName ${btoa('editor-portfolio')}`,
-              `objectName ${btoa(objectPath)}`,
-              `contentType ${btoa(file.type || 'application/octet-stream')}`,
-              `cacheControl ${btoa('3600')}`,
-            ].join(','),
-            'Tus-Resumable': '1.0.0',
-          },
-        });
-        if (!createRes.ok) {
-          const msg = await createRes.text();
-          throw new Error(msg);
+      const isVideo = file.type.startsWith('video');
+      if (isVideo) {
+        // Upload via Bunny Stream: create video slot → PUT file directly to Bunny
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/bunny-upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+            },
+            body: JSON.stringify({ title: file.name }),
+          });
+          if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(`bunny-upload: ${msg}`);
+          }
+          const { videoId, libraryId, apiKey } = await res.json() as { videoId: string; libraryId: number; apiKey: string };
+          // PUT the file directly browser → Bunny (no server in the middle)
+          const putRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+            method: 'PUT',
+            headers: { AccessKey: apiKey },
+            body: file,
+          });
+          if (!putRes.ok) {
+            const msg = await putRes.text();
+            throw new Error(`Bunny PUT: ${msg}`);
+          }
+          newItems.push({
+            url: `https://iframe.mediadelivery.net/embed/679977/${videoId}`,
+            type: 'video',
+            title: file.name,
+            videoId,
+          });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('Bunny upload error:', msg);
+          failed.push(`${file.name}: ${msg}`);
         }
-        const location = createRes.headers.get('Location') ?? '';
-        // Step 2: upload chunks
-        let offset = 0;
-        while (offset < file.size) {
-          const chunk = file.slice(offset, offset + chunkSize);
-          const patchRes = await fetch(location, {
-            method: 'PATCH',
+      } else {
+        // Images — keep Supabase Storage TUS upload
+        const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+        const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const objectPath = `${user.id}/${fname}`;
+        try {
+          const uploadUrl = `${supabaseUrl}/storage/v1/upload/resumable`;
+          const chunkSize = 6 * 1024 * 1024;
+          const createRes = await fetch(uploadUrl, {
+            method: 'POST',
             headers: {
               Authorization: `Bearer ${accessToken}`,
               apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
               'Content-Type': 'application/offset+octet-stream',
-              'Upload-Offset': String(offset),
+              'Upload-Length': String(file.size),
+              'Upload-Metadata': [
+                `filename ${btoa(fname)}`,
+                `bucketName ${btoa('editor-portfolio')}`,
+                `objectName ${btoa(objectPath)}`,
+                `contentType ${btoa(file.type || 'application/octet-stream')}`,
+                `cacheControl ${btoa('3600')}`,
+              ].join(','),
               'Tus-Resumable': '1.0.0',
             },
-            body: chunk,
           });
-          if (!patchRes.ok) {
-            const msg = await patchRes.text();
+          if (!createRes.ok) {
+            const msg = await createRes.text();
             throw new Error(msg);
           }
-          offset += chunkSize;
+          const location = createRes.headers.get('Location') ?? '';
+          let offset = 0;
+          while (offset < file.size) {
+            const chunk = file.slice(offset, offset + chunkSize);
+            const patchRes = await fetch(location, {
+              method: 'PATCH',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+                'Content-Type': 'application/offset+octet-stream',
+                'Upload-Offset': String(offset),
+                'Tus-Resumable': '1.0.0',
+              },
+              body: chunk,
+            });
+            if (!patchRes.ok) {
+              const msg = await patchRes.text();
+              throw new Error(msg);
+            }
+            offset += chunkSize;
+          }
+          const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(objectPath);
+          newItems.push({ url: urlData.publicUrl, type: 'image', title: file.name });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('Portfolio image upload error:', msg);
+          failed.push(`${file.name}: ${msg}`);
         }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('Portfolio upload error:', msg);
-        failed.push(`${file.name}: ${msg}`);
-        continue;
       }
-      const { data: urlData } = supabase.storage.from('editor-portfolio').getPublicUrl(objectPath);
-      newItems.push({
-        url: urlData.publicUrl,
-        type: file.type.startsWith('video') ? 'video' : 'image',
-        title: file.name,
-      });
     }
     if (newItems.length !== portfolioItems.length) {
       await supabase.from('editing_editor_profiles').update({ portfolio_items: newItems }).eq('user_id', user.id);
@@ -872,7 +907,15 @@ export default function EditingDashboard() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {portfolioItems.map((item, i) => (
                       <div key={i} className="relative aspect-video rounded-xl overflow-hidden group" style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        {item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url) ? (
+                        {item.type === 'video' && item.url.includes('iframe.mediadelivery.net') ? (
+                          <iframe
+                            src={item.url}
+                            loading="lazy"
+                            style={{ border: 0, width: '100%', height: '100%' }}
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url) ? (
                           <video
                             src={item.url}
                             muted

@@ -1057,14 +1057,24 @@ function PublicCreatorProfile({ username }: { username: string }) {
               <div className="space-y-4">
                 {portfolioItems.map((item, i) => (
                   <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <video
-                      src={item.url}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="w-full rounded-t-2xl"
-                      style={{ background: '#0a0f1a', maxHeight: 280, display: 'block' }}
-                    />
+                    {item.type === 'video' && item.url.includes('iframe.mediadelivery.net') ? (
+                      <iframe
+                        src={item.url}
+                        loading="lazy"
+                        style={{ border: 0, width: '100%', aspectRatio: '16/9', display: 'block' }}
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        src={item.url}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full rounded-t-2xl"
+                        style={{ background: '#0a0f1a', maxHeight: 280, display: 'block' }}
+                      />
+                    )}
                     {(item.title || item.clientName || item.description) && (
                       <div className="px-4 py-3 space-y-1">
                         {item.title && (
@@ -1085,10 +1095,19 @@ function PublicCreatorProfile({ username }: { username: string }) {
               /* Models / photographers: image/video grid */
               <div className={`grid gap-2 ${isModel ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {portfolioItems.map((item, i) => {
-                  const isVideo = item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
+                  const isBunny = item.type === 'video' && item.url.includes('iframe.mediadelivery.net');
+                  const isVideo = isBunny || item.type === 'video' || /\.(mp4|mov|webm)$/i.test(item.url);
                   return (
                     <div key={i} className={`rounded-xl overflow-hidden ${isModel ? 'aspect-[3/4]' : 'aspect-square'}`} style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                      {isVideo ? (
+                      {isBunny ? (
+                        <iframe
+                          src={item.url}
+                          loading="lazy"
+                          style={{ border: 0, width: '100%', height: '100%' }}
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : isVideo ? (
                         <video
                           src={item.url}
                           controls
