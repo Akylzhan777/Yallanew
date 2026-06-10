@@ -41,6 +41,7 @@ interface Creator {
   packages: Package[];
   bio: string;
   tags: string[];
+  additionalRoles: string[];
   verified: boolean;
   featured?: boolean;
   promoted?: boolean;
@@ -71,6 +72,17 @@ function formatFollowers(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(0) + 'K';
   return String(n);
 }
+
+const ROLE_SEARCH_MAP: Record<string, string[]> = {
+  videographer: ['видеограф', 'videographer', 'оператор', 'operator', 'видеосъемка', 'видеосъёмка', 'video'],
+  ugc: ['ugc', 'юджиси', 'юзер контент', 'creator'],
+  editor: ['монтаж', 'монтажер', 'монтажёр', 'editor', 'editing', 'video editor'],
+  photographer: ['фотограф', 'photographer', 'фото', 'photo', 'photography'],
+  model: ['модель', 'model'],
+  blogger: ['блогер', 'блоггер', 'blogger', 'influencer', 'инфлюенсер'],
+  mobilographer: ['мобилограф', 'mobilographer'],
+  telegram_channel: ['телеграм', 'telegram', 'канал', 'channel'],
+};
 
 const CARD_GRADIENTS = [
   'linear-gradient(130deg, #FCA042 0%, #9A5F0F 100%)',
@@ -103,6 +115,7 @@ function dbProfileToCreator(p: Record<string, unknown>): Creator {
     packages: pkgs,
     bio: (p.bio as string) || '',
     tags: Array.isArray(p.tags) ? (p.tags as string[]) : [],
+    additionalRoles: Array.isArray(p.additional_roles) ? (p.additional_roles as string[]) : [],
     verified: (p.is_verified as boolean) || false,
     featured: (p.is_featured as boolean) || false,
     promoted: (p.is_promoted as boolean) === true && p.promoted_until != null && new Date(p.promoted_until as string) > new Date(),
@@ -378,8 +391,16 @@ export default function Home({ isGuest, onLoginRequest }: HomeProps) {
         if (creatorMin < min || creatorMin > max) return false;
       }
       if (search) {
-        const q = search.toLowerCase();
-        return c.name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q) || c.tags.some(tg => tg.toLowerCase().includes(q)) || c.location.toLowerCase().includes(q);
+        const q = search.toLowerCase().trim();
+        const allRoles = [c.type, ...(c.additionalRoles || [])];
+        const roleKeywords = allRoles.flatMap(r => ROLE_SEARCH_MAP[r] || [r]);
+        const haystack = [
+          c.name, c.handle, c.location, c.category, c.type,
+          ...(c.additionalRoles || []),
+          ...(c.tags || []),
+          ...roleKeywords,
+        ].join(' ').toLowerCase();
+        return haystack.includes(q);
       }
       return true;
     });
