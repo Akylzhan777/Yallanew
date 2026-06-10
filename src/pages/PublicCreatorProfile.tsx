@@ -84,7 +84,8 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
   const formatPrice = (amount: number) => formatPriceForRegion(amount, creatorRegion);
   const isKzCheckout = creatorRegion === 'KZ';
   const isModel = profile.creator_type === 'model';
-  const clientPrice = pkg.clientPrice ?? Math.round(pkg.price * 1.2);
+  const COMMISSION_RATE = 0.20;
+  const clientPrice = pkg.clientPrice ?? Math.round(pkg.price * (1 + COMMISSION_RATE));
   const [form, setForm] = useState({ name: '', email: '', whatsapp: '', company: '', brief: '' });
   const [processing, setProcessing] = useState(false);
   const [payError, setPayError] = useState('');
@@ -114,12 +115,12 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
   }, []);
 
   const createOrderRecord = async (status: 'on_hold' | 'pending', _extraFields?: Record<string, string>): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
-    // Model B: creator sets pkg.price (their take-home). Client pays clientPrice = pkg.price * 1.2.
-    // package_price stores the creator's base price so the DB trigger (calc_creator_payout) pays them 100%.
-    // Platform earns the markup (clientPrice - pkg.price); no deduction from the creator.
-    const creatorBasePrice = pkg.price;
-    const commission = clientPrice - creatorBasePrice;
-    const net = creatorBasePrice;
+    // Model B: pkg.price = creator's take-home. clientPrice = pkg.price * 1.2 (what client pays).
+    // package_price stores clientPrice so the admin sees the full order value.
+    // creator_net_amount = pkg.price (base price, no deduction). Commission = clientPrice - pkg.price.
+    const creatorPayout = pkg.price;
+    const commission = clientPrice - creatorPayout;
+    const net = creatorPayout;
     const { data: order, error: insertErr } = await supabase.from('marketplace_orders').insert({
       creator_id: profile.id,
       buyer_name: form.name,
@@ -128,7 +129,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
       campaign_brief: form.brief || null,
       package_id: pkg.id,
       package_name: pkg.name,
-      package_price: creatorBasePrice,
+      package_price: clientPrice,
       creator_net_amount: net,
       status,
       payment_method: payMethod,
@@ -153,7 +154,7 @@ function CheckoutModal({ profile, pkg, onClose }: { profile: PublicProfile; pkg:
       await supabase.rpc('upsert_creator_wallet_on_hold', {
         p_creator_id: profile.id,
         p_currency: 'KZT',
-        p_amount: creatorBasePrice,
+        p_amount: creatorPayout,
       });
     }
     return { data: order, error: null };
@@ -727,7 +728,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
   }
 
   const packages: CreatorPackage[] = Array.isArray(profile.packages) ? profile.packages as CreatorPackage[] : [];
-  const getClientPrice = (p: CreatorPackage) => p.clientPrice ?? Math.round(p.price * 1.2);
+  const getClientPrice = (p: CreatorPackage) => p.clientPrice ?? Math.round(p.price * 1.2); // 1.2 = 1 + COMMISSION_RATE
   const minPrice = packages.length > 0 ? Math.min(...packages.map(getClientPrice)) : 0;
   const isProduction = profile.creator_type === 'videographer' || profile.creator_type === 'photographer';
   const isModel = profile.creator_type === 'model';
