@@ -818,7 +818,7 @@ function PublicCreatorProfile({ username }: { username: string }) {
               </span>
             )}
             <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(99,179,237,0.1)', color: '#63b3ed', border: '1px solid rgba(99,179,237,0.2)' }}>
-              {profile.creator_type === 'ugc' ? 'UGC Creator' : profile.creator_type === 'model' ? 'Model' : profile.creator_type === 'videographer' ? 'Videographer' : profile.creator_type === 'photographer' ? 'Photographer' : 'Blogger'}
+              {profile.creator_type === 'ugc' ? 'UGC Creator' : profile.creator_type === 'model' ? 'Model' : profile.creator_type === 'videographer' ? 'Videographer' : profile.creator_type === 'photographer' ? 'Photographer' : profile.creator_type === 'editor' ? 'Video Editor' : profile.creator_type === 'telegram_channel' ? 'Telegram Channel' : 'Blogger'}
             </span>
             <span className="text-xs px-2.5 py-1 rounded-full font-medium capitalize" style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)' }}>
               {profile.category}
