@@ -342,7 +342,11 @@ export default function ProductionDashboard() {
   async function savePortfolioItems(items: PortfolioItem[]) {
     if (!user) return;
     const urls = items.map(i => i.url);
-    await supabase.from('creator_profiles').update({ portfolio_items: items, portfolio_urls: urls }).eq('user_id', user.id);
+    const { error } = await supabase.from('creator_profiles').update({ portfolio_items: items, portfolio_urls: urls }).eq('user_id', user.id);
+    if (error) {
+      console.error('savePortfolioItems error:', error);
+      alert('Не удалось сохранить портфолио в базу: ' + error.message);
+    }
   }
 
   async function deletePortfolioVideo(idx: number) {
