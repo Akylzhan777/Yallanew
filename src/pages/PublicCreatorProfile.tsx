@@ -1043,58 +1043,50 @@ function PublicCreatorProfile({ username }: { username: string }) {
 
         {/* ─── SERVICES / PACKAGES ─── */}
         {packages.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#94a3b8' }}>
+          <div className="mb-6 rounded-[30px] p-5 sm:p-6" style={{ background: '#ffffff' }}>
+            <h2 className="text-lg font-medium mb-4 font-['Sofia_Pro']" style={{ color: '#171717' }}>
               {t('marketplace.modal.choosePackage')}
             </h2>
-            <div className="space-y-2">
-              {packages.map(pkg => (
-                <div
-                  key={pkg.id}
-                  onClick={() => handleOrderClick(pkg)}
-                  className="rounded-2xl p-4 cursor-pointer transition-all active:scale-[0.98] hover:border-emerald-500/30"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-sm text-white">{pkg.name}</span>
-                      {pkg.description && (
-                        <p
-                          className="text-xs mt-0.5 leading-snug"
-                          style={{
-                            color: '#64748b',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {pkg.description}
-                        </p>
-                      )}
+            <div className="space-y-3">
+              {packages.map((pkg, idx) => (
+                <div key={pkg.id}>
+                  <div className="rounded-[24px] p-4 sm:p-5" style={{ background: '#F4F4F4' }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium mb-1" style={{ color: 'rgba(23,23,23,0.6)' }}>{pkg.name}</div>
+                        <div className="text-3xl sm:text-4xl font-medium font-['Sofia_Pro']" style={{ color: '#171717' }}>
+                          {fmtCreatorPrice(getClientPrice(pkg))}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-2 text-sm" style={{ color: 'rgba(0,0,0,0.6)' }}>
+                          <Clock size={14} style={{ color: '#FFC360' }} />
+                          {isModel ? t('packages.hours_display', { hours: pkg.deliveryDays }) : `${pkg.deliveryDays} days`}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleOrderClick(pkg)}
+                        className="flex-shrink-0 h-12 px-6 rounded-full flex items-center justify-center text-base font-medium font-['Sofia_Pro'] transition-transform active:scale-95"
+                        style={{ background: '#FFC360', color: '#422006' }}
+                      >
+                        Order
+                      </button>
                     </div>
-                    <div className="flex-shrink-0 text-right">
-                      <span className="font-bold text-white">{fmtCreatorPrice(getClientPrice(pkg))}</span>
-                    </div>
+                    {pkg.description && (
+                      <p className="text-sm mt-3 leading-snug" style={{ color: 'rgba(23,23,23,0.55)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {pkg.description}
+                      </p>
+                    )}
+                    {pkg.includes && pkg.includes.length > 0 && pkg.includes.filter(Boolean).join(' ').trim() !== (pkg.description || '').trim() && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                        {pkg.includes.filter(Boolean).map(item => (
+                          <span key={item} className="flex items-center gap-1 text-sm max-w-full" style={{ color: 'rgba(23,23,23,0.6)' }}>
+                            <Check size={12} style={{ color: '#16a34a', flexShrink: 0 }} />
+                            <span className="truncate">{item}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs" style={{ color: '#475569' }}>
-                      <Clock size={10} /> {isModel ? t('packages.hours_display', { hours: pkg.deliveryDays }) : `${pkg.deliveryDays} days`}
-                    </div>
-                    <div className="flex items-center gap-1 text-xs font-medium" style={{ color: '#00C48C' }}>
-                      Order <ExternalLink size={10} />
-                    </div>
-                  </div>
-                  {pkg.includes && pkg.includes.length > 0 && pkg.includes.filter(Boolean).join(' ').trim() !== (pkg.description || '').trim() && (
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      {pkg.includes.filter(Boolean).map(item => (
-                        <span key={item} className="flex items-center gap-1 text-xs max-w-full" style={{ color: '#64748b' }}>
-                          <Check size={9} style={{ color: '#00C48C', flexShrink: 0 }} />
-                          <span className="truncate">{item}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {idx < packages.length - 1 && <div className="h-px my-1" style={{ background: 'transparent' }} />}
                 </div>
               ))}
             </div>
